@@ -1,0 +1,54 @@
+import React from 'react';
+import { Award, Smile, Globe, Headphones } from 'lucide-react';
+
+export default function StatsBar() {
+  return (
+    <div className="stats-container">
+      <div className="stats-grid">
+        {/* Card 1 */}
+        <div className="stat-card">
+          <div className="stat-icon-badge">
+            <Award className="stat-icon" />
+          </div>
+          <div className="stat-text-wrap">
+            <span className="stat-number">10+</span>
+            <span className="stat-label">YEARS OF PRESTIGE</span>
+          </div>
+        </div>
+
+        {/* Card 2 */}
+        <div className="stat-card">
+          <div className="stat-icon-badge">
+            <Smile className="stat-icon" />
+          </div>
+          <div className="stat-text-wrap">
+            <span className="stat-number">5,000+</span>
+            <span className="stat-label">HAPPY TRAVELERS</span>
+          </div>
+        </div>
+
+        {/* Card 3 */}
+        <div className="stat-card">
+          <div className="stat-icon-badge">
+            <Globe className="stat-icon" />
+          </div>
+          <div className="stat-text-wrap">
+            <span className="stat-number">50+</span>
+            <span className="stat-label">GLOBAL DESTINATIONS</span>
+          </div>
+        </div>
+
+        {/* Card 4 */}
+        <div className="stat-card">
+          <div className="stat-icon-badge">
+            <Headphones className="stat-icon" />
+          </div>
+          <div className="stat-text-wrap">
+            <span className="stat-number">24/7</span>
+            <span className="stat-label">DEDICATED SUPPORT</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
