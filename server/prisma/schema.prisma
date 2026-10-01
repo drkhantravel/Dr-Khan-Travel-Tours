@@ -79,3 +79,12 @@ model SiteSetting {
 
   @@map("site_settings")
 }
+
+model AboutSlide {
+  id        String   @id
+  imageUrl  String   @db.Text @map("image_url")
+  caption   String?  @map("caption")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("about_slides")
+}

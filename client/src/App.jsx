@@ -1,50 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import Hero from './components/Hero';
 import AboutSection from './components/AboutSection';
-import TourPackagesSection from './components/TourPackagesSection';
-import DestinationsSection from './components/DestinationsSection';
-import TestimonialsSection from './components/TestimonialsSection';
-import ContactSection from './components/ContactSection';
+import GallerySection from './components/GallerySection';
 import Footer from './components/Footer';
 
-import LoginModal from './components/LoginModal';
-import BookingModal from './components/BookingModal';
+import AdminLoginPage from './components/AdminLoginPage';
 import AdminDashboard from './components/AdminDashboard';
 
 const API_URL = 'http://localhost:5000';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('home'); // 'home' or 'admin'
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  
-  const [tours, setTours] = useState([]);
-  const [destinations, setDestinations] = useState([]);
-  const [testimonials, setTestimonials] = useState([]);
   const [serverConfig, setServerConfig] = useState(null);
-  const [selectedTour, setSelectedTour] = useState(null);
 
-  // Load server config and initial dataset
+  // Sync state when browser back/forward buttons are clicked
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateTo = (path) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
+  };
+
+  // Load server config
   const fetchPublicData = async () => {
     try {
-      const [configRes, toursRes, destsRes, testimsRes] = await Promise.all([
-        fetch(`${API_URL}/api/config`),
-        fetch(`${API_URL}/api/tours`),
-        fetch(`${API_URL}/api/destinations`),
-        fetch(`${API_URL}/api/testimonials`)
-      ]);
-
+      const configRes = await fetch(`${API_URL}/api/config`);
       const configData = await configRes.json();
-      const toursData = await toursRes.json();
-      const destsData = await destsRes.json();
-      const testimsData = await testimsRes.json();
-
       if (configData.success) setServerConfig(configData);
-      if (toursData.success) setTours(toursData.tours);
-      if (destsData.success) setDestinations(destsData.destinations);
-      if (testimsData.success) setTestimonials(testimsData.testimonials);
     } catch (err) {
       console.error('API connection error:', err);
     }
@@ -68,16 +57,13 @@ export default function App() {
           setIsAdminLoggedIn(false);
         }
       })
-      .catch(() => {
-        // If server offline, keep saved status
-      });
+      .catch(() => {});
     }
   }, []);
 
   const handleLoginSuccess = (loginData) => {
     setIsAdminLoggedIn(true);
-    setIsLoginModalOpen(false);
-    setCurrentView('admin');
+    navigateTo('/admin');
   };
 
   const handleLogout = () => {
@@ -92,35 +78,52 @@ export default function App() {
     localStorage.removeItem('dk_admin_token');
     localStorage.removeItem('dk_admin_email');
     setIsAdminLoggedIn(false);
-    setCurrentView('home');
+    navigateTo('/admin/login');
   };
 
-  const handleOpenBookingForTour = (tourObj) => {
-    setSelectedTour(tourObj);
-    setIsBookingModalOpen(true);
-  };
-
-  if (currentView === 'admin' && isAdminLoggedIn) {
+  // Dedicated Route 1: /admin/login or /login
+  if (currentPath === '/admin/login' || currentPath === '/login') {
+    if (isAdminLoggedIn) {
+      navigateTo('/admin');
+      return null;
+    }
     return (
-      <AdminDashboard
-        onLogout={handleLogout}
-        onSwitchToSite={() => setCurrentView('home')}
+      <AdminLoginPage
+        onLoginSuccess={handleLoginSuccess}
+        onNavigateToSite={() => navigateTo('/')}
         apiUrl={API_URL}
       />
     );
   }
 
+  // Dedicated Route 2: /admin or /admin/dashboard
+  if (currentPath === '/admin' || currentPath === '/admin/dashboard') {
+    if (!isAdminLoggedIn) {
+      return (
+        <AdminLoginPage
+          onLoginSuccess={handleLoginSuccess}
+          onNavigateToSite={() => navigateTo('/')}
+          apiUrl={API_URL}
+        />
+      );
+    }
+    return (
+      <AdminDashboard
+        onLogout={handleLogout}
+        onSwitchToSite={() => navigateTo('/')}
+        apiUrl={API_URL}
+      />
+    );
+  }
+
+  // Dedicated Route 3: Main Website Home Page (/)
   return (
     <div className="app-container">
       {/* Hero Section with Navbar */}
       <Hero
-        onOpenBookingModal={() => {
-          setSelectedTour(null);
-          setIsBookingModalOpen(true);
-        }}
-        onOpenLoginModal={() => setIsLoginModalOpen(true)}
+        onOpenLoginModal={() => navigateTo('/admin/login')}
         isAdmin={isAdminLoggedIn}
-        onOpenAdminView={() => setCurrentView('admin')}
+        onOpenAdminView={() => navigateTo('/admin')}
         onLogout={handleLogout}
         serverConfig={serverConfig}
       />
@@ -128,50 +131,15 @@ export default function App() {
       {/* About Section */}
       <AboutSection />
 
-      {/* Featured Tour Packages */}
-      <TourPackagesSection
-        tours={tours}
-        onSelectTourForBooking={handleOpenBookingForTour}
-      />
-
-      {/* Global Destinations */}
-      <DestinationsSection
-        destinations={destinations}
-      />
-
-      {/* Customer Testimonials */}
-      <TestimonialsSection
-        testimonials={testimonials}
-      />
-
-      {/* Contact Section */}
-      <ContactSection
-        apiUrl={API_URL}
-      />
+      {/* Travel Gallery Section */}
+      <GallerySection />
 
       {/* Footer */}
       <Footer
-        onOpenLoginModal={() => setIsLoginModalOpen(true)}
+        onOpenLoginModal={() => navigateTo('/admin/login')}
         isAdmin={isAdminLoggedIn}
-        onOpenAdminView={() => setCurrentView('admin')}
+        onOpenAdminView={() => navigateTo('/admin')}
         serverConfig={serverConfig}
-      />
-
-      {/* Admin Login Modal */}
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-        apiUrl={API_URL}
-      />
-
-      {/* Booking Modal */}
-      <BookingModal
-        isOpen={isBookingModalOpen}
-        onClose={() => setIsBookingModalOpen(false)}
-        selectedTour={selectedTour}
-        toursList={tours}
-        apiUrl={API_URL}
       />
     </div>
   );

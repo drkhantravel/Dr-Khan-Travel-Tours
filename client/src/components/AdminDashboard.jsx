@@ -3,21 +3,27 @@ import {
   LayoutDashboard, CalendarCheck, Package, MessageSquare, Settings, 
   LogOut, Plus, Trash2, Edit3, CheckCircle, AlertCircle, X,
   Search, ExternalLink, RefreshCw, DollarSign, Shield, Server,
-  ChevronRight, Eye, MapPin
+  ChevronRight, Eye, MapPin, Image, UploadCloud, Sliders
 } from 'lucide-react';
 
 export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'http://localhost:5000' }) {
-  const [activeTab, setActiveTab] = useState('overview'); // overview, bookings, tours, messages, env
+  const [activeTab, setActiveTab] = useState('overview'); // overview, slides, messages, env
   
   // Data stores
   const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [tours, setTours] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [aboutSlides, setAboutSlides] = useState([]);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // New Slide Form State
+  const [newSlideUrl, setNewSlideUrl] = useState('');
+  const [newSlideCaption, setNewSlideCaption] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Filters
   const [bookingFilterStatus, setBookingFilterStatus] = useState('All');
@@ -54,22 +60,25 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
     try {
       const headers = { 'Authorization': `Bearer ${adminToken}` };
 
-      const [statsRes, bookingsRes, toursRes, msgsRes] = await Promise.all([
+      const [statsRes, bookingsRes, toursRes, msgsRes, slidesRes] = await Promise.all([
         fetch(`${apiUrl}/api/admin/stats`, { headers }),
         fetch(`${apiUrl}/api/admin/bookings`, { headers }),
         fetch(`${apiUrl}/api/tours`),
-        fetch(`${apiUrl}/api/admin/messages`, { headers })
+        fetch(`${apiUrl}/api/admin/messages`, { headers }),
+        fetch(`${apiUrl}/api/about-slides`)
       ]);
 
       const statsData = await statsRes.json();
       const bookingsData = await bookingsRes.json();
       const toursData = await toursRes.json();
       const msgsData = await msgsRes.json();
+      const slidesData = await slidesRes.json();
 
       if (statsData.success) setStats(statsData.stats);
       if (bookingsData.success) setBookings(bookingsData.bookings);
       if (toursData.success) setTours(toursData.tours);
       if (msgsData.success) setMessages(msgsData.messages);
+      if (slidesData.success) setAboutSlides(slidesData.slides);
 
     } catch (err) {
       console.error('Failed to load admin data:', err);
@@ -82,6 +91,129 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
   useEffect(() => {
     fetchAdminData();
   }, [apiUrl, adminToken]);
+
+  // ================= ABOUT SLIDES ACTIONS =================
+  const handleAddAboutSlide = async (e) => {
+    e.preventDefault();
+    if (!newSlideUrl) return alert('Please enter or upload an image URL.');
+
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/about-slides`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({ imageUrl: newSlideUrl, caption: newSlideCaption })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAboutSlides(prev => [data.slide, ...prev]);
+        setNewSlideUrl('');
+        setNewSlideCaption('');
+        showNotification('New About Slider image added successfully!');
+      } else {
+        alert(data.message || 'Failed to add slide.');
+      }
+    } catch (err) {
+      alert('Error adding slide.');
+    }
+  };
+
+  const handleDeleteAboutSlide = async (slideId) => {
+    if (!window.confirm('Delete this image from About section slider?')) return;
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/about-slides/${slideId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAboutSlides(prev => prev.filter(s => s.id !== slideId));
+        showNotification('Slide deleted successfully!');
+      }
+    } catch (err) {
+      alert('Failed to delete slide.');
+    }
+  };
+
+  const handleDirectImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setUploadingImage(true);
+    try {
+      const sigRes = await fetch(`${apiUrl}/api/admin/cloudinary-signature`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      });
+      const sigData = await sigRes.json();
+
+      if (!sigData.success) {
+        throw new Error(sigData.message || 'Signature failed');
+      }
+
+      const uploadedUrls = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('api_key', sigData.apiKey);
+        formData.append('timestamp', sigData.timestamp);
+        formData.append('signature', sigData.signature);
+        formData.append('upload_preset', sigData.uploadPreset);
+
+        const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        const cloudData = await cloudRes.json();
+
+        if (cloudData.secure_url) {
+          uploadedUrls.push(cloudData.secure_url);
+        }
+      }
+
+      if (uploadedUrls.length === 0) {
+        alert('Cloudinary upload failed for selected file(s).');
+      } else if (uploadedUrls.length === 1) {
+        setNewSlideUrl(uploadedUrls[0]);
+        showNotification('1 image uploaded to Cloudinary successfully!');
+      } else {
+        // Multiple files: save all directly into slider
+        const slidesToCreate = uploadedUrls.map((url, idx) => ({
+          imageUrl: url,
+          caption: newSlideCaption ? `${newSlideCaption} (${idx + 1})` : ''
+        }));
+
+        const bulkRes = await fetch(`${apiUrl}/api/admin/about-slides/bulk`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${adminToken}`
+          },
+          body: JSON.stringify({ slides: slidesToCreate })
+        });
+        const bulkData = await bulkRes.json();
+        if (bulkData.success && bulkData.slides) {
+          setAboutSlides(prev => [...bulkData.slides, ...prev]);
+          setNewSlideUrl('');
+          setNewSlideCaption('');
+          showNotification(`Successfully uploaded and saved ${bulkData.slides.length} slides!`);
+        } else {
+          setNewSlideUrl(uploadedUrls[0]);
+          showNotification(`${uploadedUrls.length} images uploaded to Cloudinary!`);
+        }
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert('Upload failed: ' + err.message);
+    } finally {
+      setUploadingImage(false);
+      if (e.target) e.target.value = '';
+    }
+  };
 
   const showNotification = (msg) => {
     setSuccessMsg(msg);
@@ -341,21 +473,12 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
             </button>
 
             <button
-              onClick={() => setActiveTab('bookings')}
-              className={`sidebar-link ${activeTab === 'bookings' ? 'active' : ''}`}
+              onClick={() => setActiveTab('slides')}
+              className={`sidebar-link ${activeTab === 'slides' ? 'active' : ''}`}
             >
-              <CalendarCheck size={20} />
-              <span>Bookings</span>
-              <span className="nav-count-badge">{bookings.length}</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('tours')}
-              className={`sidebar-link ${activeTab === 'tours' ? 'active' : ''}`}
-            >
-              <Package size={20} />
-              <span>Tour Packages</span>
-              <span className="nav-count-badge">{tours.length}</span>
+              <Image size={20} />
+              <span>About Slider Images</span>
+              <span className="nav-count-badge">{aboutSlides.length}</span>
             </button>
 
             <button
@@ -509,6 +632,112 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
                           </div>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ================= ABOUT SLIDER IMAGES TAB ================= */}
+              {activeTab === 'slides' && (
+                <div className="tab-view animate-fade-in">
+                  <div className="view-header">
+                    <div>
+                      <h2>About Section Image Slider</h2>
+                      <p className="section-desc">Manage, upload, and order images that slide automatically every 3 seconds in the About Us section.</p>
+                    </div>
+                    <button onClick={fetchAdminData} className="refresh-icon-btn" title="Refresh data">
+                      <RefreshCw size={16} />
+                    </button>
+                  </div>
+
+                  {/* Add New Slide Card */}
+                  <div className="admin-card margin-bottom">
+                    <div className="card-header-bar">
+                      <h3>Add New Slider Image</h3>
+                    </div>
+                    <form onSubmit={handleAddAboutSlide} className="admin-form-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div>
+                          <label className="form-label">Image URL</label>
+                          <input
+                            type="url"
+                            required
+                            value={newSlideUrl}
+                            onChange={(e) => setNewSlideUrl(e.target.value)}
+                            placeholder="https://images.unsplash.com/photo-..."
+                            className="form-input"
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label">Caption (Optional)</label>
+                          <input
+                            type="text"
+                            value={newSlideCaption}
+                            onChange={(e) => setNewSlideCaption(e.target.value)}
+                            placeholder="e.g. Luxury Resort Sunset"
+                            className="form-input"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Or Direct Upload via Cloudinary */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <label className="submit-primary-btn" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'auto' }}>
+                          <UploadCloud size={18} />
+                          {uploadingImage ? 'Uploading Image(s)...' : 'Upload Image(s) via Cloudinary'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleDirectImageUpload}
+                            style={{ display: 'none' }}
+                            disabled={uploadingImage}
+                          />
+                        </label>
+                        {newSlideUrl && (
+                          <span style={{ fontSize: '0.85rem', color: '#10b981' }}>✓ Image ready for preview & save</span>
+                        )}
+                      </div>
+
+                      {/* Image Preview if URL exists */}
+                      {newSlideUrl && (
+                        <div style={{ marginTop: '0.5rem', borderRadius: '1rem', overflow: 'hidden', height: '140px', width: '240px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                          <img src={newSlideUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                      )}
+
+                      <button type="submit" className="submit-primary-btn" style={{ width: '220px', marginTop: '0.5rem' }}>
+                        <Plus size={18} /> Save to About Slider
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Current Slides Grid */}
+                  <div className="admin-card">
+                    <div className="card-header-bar">
+                      <h3>Active Slider Images ({aboutSlides.length})</h3>
+                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Slides cross-fade every 3 seconds on website</span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.25rem', marginTop: '1.25rem' }}>
+                      {aboutSlides.map((slide, idx) => (
+                        <div key={slide.id} style={{ position: 'relative', borderRadius: '1.25rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)', background: '#081620' }}>
+                          <img src={slide.imageUrl} alt={slide.caption || 'Slide'} style={{ width: '100%', height: '160px', objectFit: 'cover' }} />
+                          <div style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                              <span style={{ fontSize: '0.7rem', color: '#60a5fa', fontWeight: '800' }}>SLIDE #{idx + 1}</span>
+                              <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#ffffff' }}>{slide.caption || 'Untitled Slide'}</h4>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteAboutSlide(slide.id)}
+                              style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                              title="Delete slide"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>

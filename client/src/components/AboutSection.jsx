@@ -1,8 +1,70 @@
-import React from 'react';
-import { ShieldCheck, Compass, Headphones, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Compass, Headphones, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import StatsBar from './StatsBar';
 
-export default function AboutSection() {
+const defaultSlides = [
+  {
+    id: "slide-1",
+    imageUrl: "https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?auto=format&fit=crop&w=800&q=80",
+    caption: "Luxury Yacht Sunset Cruise"
+  },
+  {
+    id: "slide-2",
+    imageUrl: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80",
+    caption: "Alpine Chalet Sanctuary"
+  },
+  {
+    id: "slide-3",
+    imageUrl: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80",
+    caption: "Tropical Ocean Villa"
+  },
+  {
+    id: "slide-4",
+    imageUrl: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
+    caption: "Executive Spa Resort"
+  }
+];
+
+export default function AboutSection({ apiUrl = 'http://localhost:5000' }) {
+  const [slides, setSlides] = useState(defaultSlides);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Fetch admin-uploaded slides from API
+  useEffect(() => {
+    fetch(`${apiUrl}/api/about-slides`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.slides && data.slides.length > 0) {
+          setSlides(data.slides);
+        }
+      })
+      .catch(() => {
+        // Fallback default if server offline
+      });
+  }, [apiUrl]);
+
+  // Auto-slide every 3 seconds (3000ms)
+  useEffect(() => {
+    if (slides.length <= 1) return;
+
+    const timer = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % slides.length);
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [slides]);
+
+  const handleNext = () => {
+    setCurrentIndex(prev => (prev + 1) % slides.length);
+  };
+
+  const handlePrev = () => {
+    setCurrentIndex(prev => (prev - 1 + slides.length) % slides.length);
+  };
+
+  const mainSlide = slides[currentIndex] || defaultSlides[0];
+  const nextSlide = slides[(currentIndex + 1) % slides.length] || defaultSlides[1];
+
   return (
     <section id="about" className="about-section">
       {/* Top 4-Card Stats Bar */}
@@ -11,14 +73,17 @@ export default function AboutSection() {
       {/* Main About Dr Khan Content */}
       <div className="about-main-container">
         <div className="about-grid">
-          {/* Left Column: Dual Overlapping Images */}
+          {/* Left Column: Dual Overlapping Image Slider (3-sec auto slide) */}
           <div className="about-images-column">
-            <div className="main-yacht-card">
+            {/* Main Card */}
+            <div className="main-yacht-card slider-card-frame">
               <img
-                src="https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?auto=format&fit=crop&w=800&q=80"
-                alt="Luxury yacht sunset cruise"
-                className="yacht-img"
+                key={mainSlide.id || mainSlide.imageUrl}
+                src={mainSlide.imageUrl}
+                alt={mainSlide.caption || "About Dr Khan Travel"}
+                className="yacht-img slide-fade-img"
               />
+              
               {/* Floating 100% Satisfaction Badge */}
               <div className="satisfaction-badge">
                 <div className="check-badge-circle">
@@ -29,14 +94,36 @@ export default function AboutSection() {
                   <div className="badge-stat-lbl">Satisfaction Assured</div>
                 </div>
               </div>
+
+              {/* Slider Controls Overlay */}
+              {slides.length > 1 && (
+                <div className="slider-nav-controls">
+                  <button onClick={handlePrev} className="slider-arrow-btn" aria-label="Previous slide">
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div className="slider-dots-indicator">
+                    {slides.map((_, idx) => (
+                      <span
+                        key={idx}
+                        onClick={() => setCurrentIndex(idx)}
+                        className={`slider-dot ${idx === currentIndex ? 'active' : ''}`}
+                      />
+                    ))}
+                  </div>
+                  <button onClick={handleNext} className="slider-arrow-btn" aria-label="Next slide">
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Overlapping Resort Image */}
-            <div className="overlay-resort-card">
+            {/* Overlapping Secondary Card (Next Slide Preview) */}
+            <div className="overlay-resort-card slider-overlay-frame" onClick={handleNext}>
               <img
-                src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=700&q=80"
-                alt="Luxury alpine chalet resort"
-                className="resort-img"
+                key={nextSlide.id || nextSlide.imageUrl}
+                src={nextSlide.imageUrl}
+                alt={nextSlide.caption || "Next Destination"}
+                className="resort-img slide-fade-img"
               />
             </div>
           </div>

@@ -23,10 +23,7 @@ export default function Navbar({ onOpenMobileMenu, onOpenLoginModal, isAdmin, on
         {/* Nav Links (Desktop) */}
         <div className="nav-items-desktop">
           <a href="#about" className="nav-item">About Us</a>
-          <a href="#packages" className="nav-item">Tour Packages</a>
-          <a href="#destinations" className="nav-item">Destinations</a>
-          <a href="#testimonials" className="nav-item">Reviews</a>
-          <a href="#contact" className="nav-item">Contact</a>
+          <a href="#gallery" className="nav-item">Gallery</a>
         </div>
 
         {/* Actions (Login Button placed where Book Now was) */}

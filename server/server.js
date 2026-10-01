@@ -37,53 +37,7 @@ const siteSettings = {
 };
 
 // In-memory store fallback for user bookings and messages
-const bookingsStore = [
-  {
-    bookingId: "DK-98421",
-    tourId: "tour-1",
-    tourTitle: "VIP Executive Umrah Package",
-    tourPricePerPerson: 2450,
-    totalAmount: 4900,
-    fullName: "Ahmad Raza",
-    email: "ahmad.raza@example.com",
-    phone: "+92 300 1234567",
-    travelersCount: 2,
-    travelDate: "2026-11-15",
-    specialRequests: "Wheelchair assistance requested for senior citizen.",
-    status: "Confirmed",
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
-  },
-  {
-    bookingId: "DK-74291",
-    tourId: "tour-2",
-    tourTitle: "Swiss Alps & Romantic Paris Explorer",
-    tourPricePerPerson: 3290,
-    totalAmount: 9870,
-    fullName: "Fatima Noor",
-    email: "fatima.noor@example.com",
-    phone: "+92 321 9876543",
-    travelersCount: 3,
-    travelDate: "2026-12-01",
-    specialRequests: "Halal meal options on Swiss Glacier train.",
-    status: "Pending",
-    createdAt: new Date(Date.now() - 86400000 * 1).toISOString()
-  },
-  {
-    bookingId: "DK-31054",
-    tourId: "tour-5",
-    tourTitle: "Northern Karakoram Expedition (Hunza & Skardu)",
-    tourPricePerPerson: 1190,
-    totalAmount: 4760,
-    fullName: "Dr. Usman Ali",
-    email: "usman.ali@example.com",
-    phone: "+92 333 4567890",
-    travelersCount: 4,
-    travelDate: "2026-10-20",
-    specialRequests: "Require two 4x4 Prado jeeps for mountain tour.",
-    status: "Confirmed",
-    createdAt: new Date(Date.now() - 3600000 * 5).toISOString()
-  }
-];
+const bookingsStore = [];
 
 const contactMessagesStore = [
   {
@@ -107,6 +61,50 @@ const contactMessagesStore = [
     receivedAt: new Date(Date.now() - 86400000 * 3).toISOString()
   }
 ];
+
+// About section slider images store
+let aboutSlidesStore = [
+  {
+    id: "slide-1",
+    imageUrl: "https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?auto=format&fit=crop&w=800&q=80",
+    caption: "Luxury Yacht Sunset Cruise"
+  },
+  {
+    id: "slide-2",
+    imageUrl: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80",
+    caption: "Alpine Resort Sanctuary"
+  },
+  {
+    id: "slide-3",
+    imageUrl: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80",
+    caption: "Tropical Ocean Villa"
+  },
+  {
+    id: "slide-4",
+    imageUrl: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
+    caption: "Executive Spa Resort"
+  }
+];
+
+async function getAboutSlidesList() {
+  if (isDbConnected()) {
+    try {
+      const dbSlides = await prisma.aboutSlide.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
+      if (dbSlides.length > 0) {
+        return dbSlides.map(s => ({
+          id: s.id,
+          imageUrl: s.imageUrl,
+          caption: s.caption || ''
+        }));
+      }
+    } catch (e) {
+      console.error('Prisma query error for about slides:', e.message);
+    }
+  }
+  return aboutSlidesStore;
+}
 
 // Mutable tours store initialized with toursData
 let toursList = [...toursData];
@@ -272,6 +270,16 @@ app.get('/api/testimonials', (req, res) => {
   res.json({
     success: true,
     testimonials: testimonialsData
+  });
+});
+
+// Get About Section Slider Images
+app.get('/api/about-slides', async (req, res) => {
+  const slides = await getAboutSlidesList();
+  res.json({
+    success: true,
+    count: slides.length,
+    slides
   });
 });
 
@@ -490,6 +498,103 @@ app.post('/api/admin/cloudinary-signature', authenticateAdmin, (req, res) => {
     uploadPreset,
     timestamp,
     signature
+  });
+});
+
+// Admin: Add new About Section Slide
+app.post('/api/admin/about-slides', authenticateAdmin, async (req, res) => {
+  const { imageUrl, caption } = req.body;
+  if (!imageUrl) {
+    return res.status(400).json({ success: false, message: 'Image URL is required' });
+  }
+
+  const newSlide = {
+    id: `slide-${Date.now()}`,
+    imageUrl,
+    caption: caption || ''
+  };
+
+  if (isDbConnected()) {
+    try {
+      await prisma.aboutSlide.create({
+        data: {
+          id: newSlide.id,
+          imageUrl: newSlide.imageUrl,
+          caption: newSlide.caption
+        }
+      });
+    } catch (e) {
+      console.error('Prisma save error for about slide:', e.message);
+    }
+  }
+
+  aboutSlidesStore.unshift(newSlide);
+  res.json({
+    success: true,
+    message: 'About slide added successfully!',
+    slide: newSlide
+  });
+});
+
+// Admin: Add multiple About Section Slides in bulk
+app.post('/api/admin/about-slides/bulk', authenticateAdmin, async (req, res) => {
+  const { slides } = req.body;
+  if (!Array.isArray(slides) || slides.length === 0) {
+    return res.status(400).json({ success: false, message: 'Slides array is required' });
+  }
+
+  const createdSlides = [];
+  for (const item of slides) {
+    if (!item.imageUrl) continue;
+    const newSlide = {
+      id: `slide-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      imageUrl: item.imageUrl,
+      caption: item.caption || ''
+    };
+
+    if (isDbConnected()) {
+      try {
+        await prisma.aboutSlide.create({
+          data: {
+            id: newSlide.id,
+            imageUrl: newSlide.imageUrl,
+            caption: newSlide.caption
+          }
+        });
+      } catch (e) {
+        console.error('Prisma bulk slide save error:', e.message);
+      }
+    }
+
+    aboutSlidesStore.unshift(newSlide);
+    createdSlides.push(newSlide);
+  }
+
+  res.json({
+    success: true,
+    message: `${createdSlides.length} slide(s) added successfully!`,
+    slides: createdSlides
+  });
+});
+
+// Admin: Delete About Section Slide
+app.delete('/api/admin/about-slides/:id', authenticateAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  if (isDbConnected()) {
+    try {
+      await prisma.aboutSlide.delete({
+        where: { id }
+      }).catch(() => {});
+    } catch (e) {
+      console.error('Prisma delete error for about slide:', e.message);
+    }
+  }
+
+  aboutSlidesStore = aboutSlidesStore.filter(s => s.id !== id);
+  res.json({
+    success: true,
+    message: `Slide ${id} deleted successfully.`
   });
 });
 

@@ -28,21 +28,7 @@ export default function Footer({ onOpenLoginModal, isAdmin, onOpenAdminView, ser
             <h4 className="footer-heading">Quick Links</h4>
             <ul className="footer-links">
               <li><a href="#about">About Our Heritage</a></li>
-              <li><a href="#packages">Executive Tour Packages</a></li>
-              <li><a href="#destinations">Global Destinations</a></li>
-              <li><a href="#testimonials">Guest Experiences</a></li>
-              <li><a href="#contact">Contact Support</a></li>
-            </ul>
-          </div>
-
-          <div className="footer-links-col">
-            <h4 className="footer-heading">Specialties</h4>
-            <ul className="footer-links">
-              <li><a href="#packages">VIP Executive Umrah</a></li>
-              <li><a href="#packages">Swiss Alps Expeditions</a></li>
-              <li><a href="#packages">Turkey Heritage Tours</a></li>
-              <li><a href="#packages">Dubai Luxury Retreats</a></li>
-              <li><a href="#packages">Karakoram Northern Tours</a></li>
+              <li><a href="#gallery">Travel Gallery</a></li>
             </ul>
           </div>
 

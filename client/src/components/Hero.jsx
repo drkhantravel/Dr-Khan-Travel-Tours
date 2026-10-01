@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowDown, Calendar, ShieldCheck } from 'lucide-react';
+import { ArrowDown, ShieldCheck } from 'lucide-react';
 import Navbar from './Navbar';
 import MobileDrawer from './MobileDrawer';
 
@@ -82,10 +82,6 @@ export default function Hero({ onOpenBookingModal, onOpenLoginModal, isAdmin, on
             </p>
 
             <div className="hero-cta-group">
-              <button onClick={onOpenBookingModal} className="hero-book-cta-btn">
-                <Calendar size={18} /> Book Tour Package
-              </button>
-
               <button
                 className="scroll-icon-btn"
                 aria-label="Scroll down to About section"

@@ -24,24 +24,10 @@ export default function MobileDrawer({ isOpen, onClose, onOpenBookingModal, onOp
 
       <div className="drawer-links">
         <a href="#about" onClick={onClose} className="drawer-item">About Us</a>
-        <a href="#packages" onClick={onClose} className="drawer-item">Tour Packages</a>
-        <a href="#destinations" onClick={onClose} className="drawer-item">Destinations</a>
-        <a href="#testimonials" onClick={onClose} className="drawer-item">Customer Reviews</a>
-        <a href="#contact" onClick={onClose} className="drawer-item">Contact Us</a>
+        <a href="#gallery" onClick={onClose} className="drawer-item">Travel Gallery</a>
       </div>
 
       <div className="drawer-footer">
-        <button
-          onClick={() => {
-            onClose();
-            onOpenBookingModal();
-          }}
-          className="book-now-btn full-width margin-bottom-sm"
-        >
-          <Calendar size={18} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-          Book Tour Package
-        </button>
-
         {isAdmin ? (
           <div className="drawer-admin-buttons">
             <button
