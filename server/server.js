@@ -194,8 +194,8 @@ app.get('/api/config', (req, res) => {
       connected: isDbConnected()
     },
     cloudinary: {
-      cloudName: process.env.CLOUDINARY_CLOUD_NAME || 'drkhantravel',
-      apiKey: process.env.CLOUDINARY_API_KEY || '879124356789123',
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME || 'dta2eolgn',
+      apiKey: process.env.CLOUDINARY_API_KEY || '166225669915732',
       uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET || 'dr_khan_travel_preset'
     }
   });
@@ -476,7 +476,7 @@ app.put('/api/admin/settings', authenticateAdmin, (req, res) => {
 // Generate Cloudinary Upload Signature (Admin Protected)
 app.post('/api/admin/cloudinary-signature', authenticateAdmin, (req, res) => {
   const timestamp = Math.round(new Date().getTime() / 1000);
-  const apiSecret = process.env.CLOUDINARY_API_SECRET || 'x9kL3pQ7mR2sT5uV8wY1zA4bC6dE8fG0';
+  const apiSecret = process.env.CLOUDINARY_API_SECRET || 'DYay_BuY2ief_6Mc6mw8iGN3B7c';
   const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET || 'dr_khan_travel_preset';
 
   // Create signature SHA-1 string
@@ -485,8 +485,8 @@ app.post('/api/admin/cloudinary-signature', authenticateAdmin, (req, res) => {
 
   res.json({
     success: true,
-    cloudName: process.env.CLOUDINARY_CLOUD_NAME || 'drkhantravel',
-    apiKey: process.env.CLOUDINARY_API_KEY || '879124356789123',
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME || 'dta2eolgn',
+    apiKey: process.env.CLOUDINARY_API_KEY || '166225669915732',
     uploadPreset,
     timestamp,
     signature
@@ -757,7 +757,7 @@ app.listen(PORT, () => {
   console.log(`📡 Port: ${PORT}`);
   console.log(`💎 ORM: Prisma ORM (v5.22.0)`);
   console.log(`🔑 Admin Email: ${process.env.ADMIN_EMAIL || 'admin@drkhantravel.com'}`);
-  console.log(`☁️  Cloudinary Cloud Name: ${process.env.CLOUDINARY_CLOUD_NAME || 'drkhantravel'}`);
+  console.log(`☁️  Cloudinary Cloud Name: ${process.env.CLOUDINARY_CLOUD_NAME || 'dta2eolgn'}`);
   console.log(`🌐 Allowed Client Origin: ${CLIENT_URL}`);
   console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`);
   console.log(`====================================================`);
