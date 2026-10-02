@@ -10,14 +10,7 @@ export default function Footer({ onOpenLoginModal, isAdmin, onOpenAdminView, ser
         <div className="footer-top-grid">
           <div className="footer-brand-col">
             <div className="brand-logo footer-logo">
-              {serverConfig?.siteSettings?.logoUrl ? (
-                <img src={serverConfig.siteSettings.logoUrl} alt={logoText} className="server-logo-img" />
-              ) : (
-                <div className="logo-badge">
-                  <Plane className="plane-icon" />
-                </div>
-              )}
-              <span className="brand-name">{logoText}</span>
+              <img src="/logo.png" alt="Dr. Khan's Travel & Tours" className="footer-logo-img" style={{ height: '55px', objectFit: 'contain' }} />
             </div>
             <p className="footer-desc">
               Premier luxury travel and pilgrimage organization providing bespoke global itineraries, 5-star hotel accommodations, and executive concierge services.
@@ -28,7 +21,7 @@ export default function Footer({ onOpenLoginModal, isAdmin, onOpenAdminView, ser
             <h4 className="footer-heading">Quick Links</h4>
             <ul className="footer-links">
               <li><a href="#about">About Our Heritage</a></li>
-              <li><a href="#gallery">Travel Gallery</a></li>
+              <li><a href="#gallery">Happy Client Gallery</a></li>
             </ul>
           </div>
 

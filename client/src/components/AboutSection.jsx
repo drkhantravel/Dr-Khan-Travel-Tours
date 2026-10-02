@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Compass, Headphones, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
 import StatsBar from './StatsBar';
 
 const defaultSlides = [
@@ -28,6 +28,8 @@ const defaultSlides = [
 export default function AboutSection({ apiUrl = 'http://localhost:5000' }) {
   const [slides, setSlides] = useState(defaultSlides);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // Fetch admin-uploaded slides from API
   useEffect(() => {
@@ -43,148 +45,165 @@ export default function AboutSection({ apiUrl = 'http://localhost:5000' }) {
       });
   }, [apiUrl]);
 
-  // Auto-slide every 3 seconds (3000ms)
+  // Auto-slide every 4 seconds when playing
   useEffect(() => {
-    if (slides.length <= 1) return;
+    if (slides.length <= 1 || !isAutoPlaying || lightboxOpen) return;
 
     const timer = setInterval(() => {
       setCurrentIndex(prev => (prev + 1) % slides.length);
-    }, 3000);
+    }, 4000);
 
     return () => clearInterval(timer);
-  }, [slides]);
+  }, [slides, isAutoPlaying, lightboxOpen]);
 
-  const handleNext = () => {
+  const handleNext = (e) => {
+    e?.stopPropagation();
     setCurrentIndex(prev => (prev + 1) % slides.length);
   };
 
-  const handlePrev = () => {
+  const handlePrev = (e) => {
+    e?.stopPropagation();
     setCurrentIndex(prev => (prev - 1 + slides.length) % slides.length);
   };
 
-  const mainSlide = slides[currentIndex] || defaultSlides[0];
-  const nextSlide = slides[(currentIndex + 1) % slides.length] || defaultSlides[1];
+  const currentSlide = slides[currentIndex] || defaultSlides[0];
 
   return (
     <section id="about" className="about-section">
       {/* Top 4-Card Stats Bar */}
       <StatsBar />
 
-      {/* Main About Dr Khan Content */}
+      {/* Main About Dr Khan Content in a Single Frame */}
       <div className="about-main-container">
-        <div className="about-grid">
-          {/* Left Column: Dual Overlapping Image Slider (3-sec auto slide) */}
-          <div className="about-images-column">
-            {/* Main Card */}
-            <div className="main-yacht-card slider-card-frame">
-              <img
-                key={mainSlide.id || mainSlide.imageUrl}
-                src={mainSlide.imageUrl}
-                alt={mainSlide.caption || "About Dr Khan Travel"}
-                className="yacht-img slide-fade-img"
-              />
-              
-              {/* Floating 100% Satisfaction Badge */}
-              <div className="satisfaction-badge">
-                <div className="check-badge-circle">
-                  ✓
+        <div className="about-single-frame">
+          <div className="about-grid">
+            {/* Left Column: Modern Showcase Image Gallery */}
+            <div className="about-gallery-wrapper">
+              {/* Main Showcase Frame */}
+              <div 
+                className="gallery-main-frame"
+                onMouseEnter={() => setIsAutoPlaying(false)}
+                onMouseLeave={() => setIsAutoPlaying(true)}
+              >
+                <img
+                  key={currentSlide.id || currentSlide.imageUrl}
+                  src={currentSlide.imageUrl}
+                  alt={currentSlide.caption || "Dr. Khan Travel Showcase"}
+                  className="gallery-main-img slide-fade-in"
+                />
+
+                {/* Slide Counter Pill */}
+                <div className="gallery-counter-pill">
+                  <span>{String(currentIndex + 1).padStart(2, '0')}</span>
+                  <span className="counter-divider">/</span>
+                  <span className="counter-total">{String(slides.length).padStart(2, '0')}</span>
                 </div>
-                <div>
-                  <div className="badge-stat-val">100%</div>
-                  <div className="badge-stat-lbl">Satisfaction Assured</div>
-                </div>
+
+                {/* Navigation Arrows Overlay */}
+                {slides.length > 1 && (
+                  <>
+                    <button 
+                      onClick={handlePrev} 
+                      className="gallery-arrow-btn prev-btn"
+                      aria-label="Previous Slide"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <button 
+                      onClick={handleNext} 
+                      className="gallery-arrow-btn next-btn"
+                      aria-label="Next Slide"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </>
+                )}
+
+                {/* Lightbox Trigger */}
+                <button 
+                  className="gallery-zoom-trigger"
+                  onClick={() => setLightboxOpen(true)}
+                  title="Expand Fullscreen"
+                  aria-label="Expand Fullscreen"
+                >
+                  <Maximize2 size={18} />
+                </button>
+
+                {/* Auto Progress Bar */}
+                {isAutoPlaying && slides.length > 1 && (
+                  <div className="gallery-progress-track">
+                    <div className="gallery-progress-bar-fill" key={currentIndex}></div>
+                  </div>
+                )}
               </div>
 
-              {/* Slider Controls Overlay */}
+              {/* Thumbnail Navigation Bar */}
               {slides.length > 1 && (
-                <div className="slider-nav-controls">
-                  <button onClick={handlePrev} className="slider-arrow-btn" aria-label="Previous slide">
-                    <ChevronLeft size={16} />
-                  </button>
-                  <div className="slider-dots-indicator">
-                    {slides.map((_, idx) => (
-                      <span
-                        key={idx}
-                        onClick={() => setCurrentIndex(idx)}
-                        className={`slider-dot ${idx === currentIndex ? 'active' : ''}`}
-                      />
-                    ))}
-                  </div>
-                  <button onClick={handleNext} className="slider-arrow-btn" aria-label="Next slide">
-                    <ChevronRight size={16} />
-                  </button>
+                <div className="gallery-thumbnails-row">
+                  {slides.map((slide, idx) => (
+                    <button
+                      key={slide.id || idx}
+                      className={`gallery-thumb-card ${idx === currentIndex ? 'active' : ''}`}
+                      onClick={() => setCurrentIndex(idx)}
+                      title={slide.caption || `Slide ${idx + 1}`}
+                    >
+                      <img src={slide.imageUrl} alt={slide.caption || `Thumbnail ${idx + 1}`} />
+                      {idx === currentIndex && <span className="thumb-active-indicator"></span>}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Overlapping Secondary Card (Next Slide Preview) */}
-            <div className="overlay-resort-card slider-overlay-frame" onClick={handleNext}>
-              <img
-                key={nextSlide.id || nextSlide.imageUrl}
-                src={nextSlide.imageUrl}
-                alt={nextSlide.caption || "Next Destination"}
-                className="resort-img slide-fade-img"
-              />
+            {/* Right Column: About Content */}
+            <div className="about-content-column">
+              <h2 className="about-main-heading">
+                About Dr. Khan's Travel & Tours
+              </h2>
+
+              <p className="about-paragraph">
+                Founded and led by owner <strong>M. ARIF KHAN</strong>, Dr. Khan's Travel & Tours brings over <strong>7+ years of professional expertise</strong> in luxury travel, ticketing, and custom tours. 
+              </p>
+
+              <p className="about-paragraph">
+                Having served more than <strong>1,000+ happy clients</strong>, M. Arif Khan is committed to offering the highest standard of service — contributing <strong>24/7 with total dedication and passion</strong> for every client's happiness.
+              </p>
+
             </div>
-          </div>
-
-          {/* Right Column: About Content */}
-          <div className="about-content-column">
-            <span className="about-pill-badge">ABOUT DR KHAN'S</span>
-
-            <h2 className="about-main-heading">
-              Your Trusted Partner for Every Extraordinary Journey
-            </h2>
-
-            <p className="about-paragraph">
-              Founded under the visionary leadership of Dr. Khan, our agency has transformed luxury travel from ordinary itineraries into seamless, deeply personalized life experiences. We understand that your time is priceless and your expectations uncompromising.
-            </p>
-
-            <p className="about-paragraph">
-              Whether securing coveted private flights, arranging expedited diplomatic-grade visas, or orchestrating private pilgrimages and serene family retreats, we manage every microscopic detail with precision and grace.
-            </p>
-
-            {/* Feature Cards Grid */}
-            <div className="features-grid">
-              <div className="feature-card">
-                <div className="feature-icon-wrapper">
-                  <ShieldCheck className="feature-icon" />
-                </div>
-                <div>
-                  <h4 className="feature-title">Professional Travel Assistance</h4>
-                  <p className="feature-desc">Licensed, accredited global ticketing network.</p>
-                </div>
-              </div>
-
-              <div className="feature-card">
-                <div className="feature-icon-wrapper">
-                  <Compass className="feature-icon" />
-                </div>
-                <div>
-                  <h4 className="feature-title">Personalized Planning</h4>
-                  <p className="feature-desc">Bespoke stays tailored to individual desires.</p>
-                </div>
-              </div>
-
-              <div className="feature-card feature-card-full">
-                <div className="feature-icon-wrapper">
-                  <Headphones className="feature-icon" />
-                </div>
-                <div>
-                  <h4 className="feature-title">Reliable 24/7 Concierge Support</h4>
-                  <p className="feature-desc">Direct hotline access before, during, and after your trip.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* CTA Button */}
-            <button className="heritage-btn">
-              <span>Learn More About Our Heritage</span>
-              <ArrowRight className="heritage-btn-arrow" />
-            </button>
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Lightbox Modal */}
+      {lightboxOpen && (
+        <div className="gallery-lightbox-overlay" onClick={() => setLightboxOpen(false)}>
+          <button className="lightbox-close-trigger" onClick={() => setLightboxOpen(false)}>
+            <X size={26} />
+          </button>
+          
+          <div className="lightbox-image-box" onClick={e => e.stopPropagation()}>
+            <img 
+              src={currentSlide.imageUrl} 
+              alt={currentSlide.caption || "Full view"} 
+              className="lightbox-img" 
+            />
+            {currentSlide.caption && (
+              <div className="lightbox-caption-bar">{currentSlide.caption}</div>
+            )}
+
+            {slides.length > 1 && (
+              <>
+                <button className="lightbox-arrow-btn prev" onClick={handlePrev}>
+                  <ChevronLeft size={28} />
+                </button>
+                <button className="lightbox-arrow-btn next" onClick={handleNext}>
+                  <ChevronRight size={28} />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

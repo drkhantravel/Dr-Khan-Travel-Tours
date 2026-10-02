@@ -8,10 +8,7 @@ export default function MobileDrawer({ isOpen, onClose, onOpenBookingModal, onOp
     <div className="mobile-drawer">
       <div className="drawer-header">
         <div className="brand-logo">
-          <div className="logo-badge">
-            <Plane className="plane-icon" />
-          </div>
-          <span className="brand-name">Dr. Khan Travel</span>
+          <img src="/logo.png" alt="Dr. Khan's Travel & Tours" style={{ height: '42px', objectFit: 'contain' }} />
         </div>
         <button
           onClick={onClose}
@@ -24,7 +21,7 @@ export default function MobileDrawer({ isOpen, onClose, onOpenBookingModal, onOp
 
       <div className="drawer-links">
         <a href="#about" onClick={onClose} className="drawer-item">About Us</a>
-        <a href="#gallery" onClick={onClose} className="drawer-item">Travel Gallery</a>
+        <a href="#gallery" onClick={onClose} className="drawer-item">Happy Client Gallery</a>
       </div>
 
       <div className="drawer-footer">

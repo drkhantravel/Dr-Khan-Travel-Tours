@@ -69,18 +69,12 @@ export default function Hero({ onOpenBookingModal, onOpenLoginModal, isAdmin, on
           {/* Left Headline */}
           <div className="headline-col">
             <h1 className="hero-title">
-              Unforgettable<br />
-              Travel Moments<br />
-              by {serverConfig?.siteSettings?.appName || 'Dr. Khan Travel'}
+              {serverConfig?.siteSettings?.appName || 'Dr. Khan Travel & Tours'}
             </h1>
           </div>
 
-          {/* Right Description & Book Button + Scroll Button */}
+          {/* Right Action & Scroll Button */}
           <div className="desc-col">
-            <p className="hero-desc-text">
-              We take you beyond the ordinary, to places where cultures come alive, landscapes leave you breathless, and every moment becomes a story to tell.
-            </p>
-
             <div className="hero-cta-group">
               <button
                 className="scroll-icon-btn"

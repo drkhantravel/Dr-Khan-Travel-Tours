@@ -3,7 +3,7 @@ import {
   LayoutDashboard, CalendarCheck, Package, MessageSquare, Settings, 
   LogOut, Plus, Trash2, Edit3, CheckCircle, AlertCircle, X,
   Search, ExternalLink, RefreshCw, DollarSign, Shield, Server,
-  ChevronRight, Eye, MapPin, Image, UploadCloud, Sliders
+  ChevronRight, Eye, MapPin, Image, UploadCloud, Sliders, Camera
 } from 'lucide-react';
 
 export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'http://localhost:5000' }) {
@@ -15,6 +15,7 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
   const [tours, setTours] = useState([]);
   const [messages, setMessages] = useState([]);
   const [aboutSlides, setAboutSlides] = useState([]);
+  const [clientGalleryItems, setClientGalleryItems] = useState([]);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -24,6 +25,21 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
   const [newSlideUrl, setNewSlideUrl] = useState('');
   const [newSlideCaption, setNewSlideCaption] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // New Gallery Item Form State
+  const [newGalleryTitle, setNewGalleryTitle] = useState('');
+  const [newGalleryCategory, setNewGalleryCategory] = useState('HAPPY CLIENTS');
+  const [newGalleryImageUrl, setNewGalleryImageUrl] = useState('');
+  const [newGallerySubtitle, setNewGallerySubtitle] = useState('');
+  const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
+
+  // Edit Gallery Item Form State
+  const [editingGalleryItem, setEditingGalleryItem] = useState(null);
+  const [editGalleryTitle, setEditGalleryTitle] = useState('');
+  const [editGalleryCategory, setEditGalleryCategory] = useState('HAPPY CLIENTS');
+  const [editGalleryImageUrl, setEditGalleryImageUrl] = useState('');
+  const [editGallerySubtitle, setEditGallerySubtitle] = useState('');
+  const [uploadingEditGalleryImage, setUploadingEditGalleryImage] = useState(false);
 
   // Filters
   const [bookingFilterStatus, setBookingFilterStatus] = useState('All');
@@ -60,12 +76,13 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
     try {
       const headers = { 'Authorization': `Bearer ${adminToken}` };
 
-      const [statsRes, bookingsRes, toursRes, msgsRes, slidesRes] = await Promise.all([
+      const [statsRes, bookingsRes, toursRes, msgsRes, slidesRes, galleryRes] = await Promise.all([
         fetch(`${apiUrl}/api/admin/stats`, { headers }),
         fetch(`${apiUrl}/api/admin/bookings`, { headers }),
         fetch(`${apiUrl}/api/tours`),
         fetch(`${apiUrl}/api/admin/messages`, { headers }),
-        fetch(`${apiUrl}/api/about-slides`)
+        fetch(`${apiUrl}/api/about-slides`),
+        fetch(`${apiUrl}/api/client-gallery`)
       ]);
 
       const statsData = await statsRes.json();
@@ -73,12 +90,14 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
       const toursData = await toursRes.json();
       const msgsData = await msgsRes.json();
       const slidesData = await slidesRes.json();
+      const galleryData = await galleryRes.json();
 
       if (statsData.success) setStats(statsData.stats);
       if (bookingsData.success) setBookings(bookingsData.bookings);
       if (toursData.success) setTours(toursData.tours);
       if (msgsData.success) setMessages(msgsData.messages);
       if (slidesData.success) setAboutSlides(slidesData.slides);
+      if (galleryData.success) setClientGalleryItems(galleryData.items);
 
     } catch (err) {
       console.error('Failed to load admin data:', err);
@@ -137,11 +156,103 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
     }
   };
 
-  const handleDirectImageUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  // ================= HAPPY CLIENT GALLERY ACTIONS =================
+  const handleAddGalleryItem = async (e) => {
+    e.preventDefault();
+    if (!newGalleryImageUrl) return alert('Please enter or upload an Image URL.');
 
-    setUploadingImage(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/client-gallery`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({
+          title: newGalleryTitle || 'Happy Client Photo',
+          category: 'HAPPY CLIENTS',
+          image: newGalleryImageUrl,
+          subtitle: ''
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setClientGalleryItems(prev => [data.item, ...prev]);
+        setNewGalleryTitle('');
+        setNewGalleryImageUrl('');
+        showNotification('New Happy Client photo added successfully!');
+      } else {
+        alert(data.message || 'Failed to add gallery item.');
+      }
+    } catch (err) {
+      alert('Error adding gallery item.');
+    }
+  };
+
+  const handleDeleteGalleryItem = async (itemId) => {
+    if (!window.confirm('Delete this photo from Happy Client Gallery?')) return;
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/client-gallery/${itemId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setClientGalleryItems(prev => prev.filter(i => i.id !== itemId));
+        showNotification('Gallery photo deleted successfully!');
+      } else {
+        alert(data.message || 'Failed to delete photo.');
+      }
+    } catch (err) {
+      alert('Error deleting gallery item: ' + err.message);
+    }
+  };
+
+  const handleOpenEditGalleryModal = (item) => {
+    setEditingGalleryItem(item);
+    setEditGalleryTitle(item.title || '');
+    setEditGalleryCategory(item.category || 'HAPPY CLIENTS');
+    setEditGalleryImageUrl(item.image || '');
+    setEditGallerySubtitle(item.subtitle || '');
+  };
+
+  const handleUpdateGalleryItem = async (e) => {
+    e.preventDefault();
+    if (!editingGalleryItem) return;
+    if (!editGalleryTitle || !editGalleryImageUrl) return alert('Please enter Title and Image URL.');
+
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/client-gallery/${editingGalleryItem.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({
+          title: editGalleryTitle,
+          category: editGalleryCategory,
+          image: editGalleryImageUrl,
+          subtitle: editGallerySubtitle
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setClientGalleryItems(prev => prev.map(i => i.id === editingGalleryItem.id ? (data.item || { ...i, title: editGalleryTitle, category: editGalleryCategory, image: editGalleryImageUrl, subtitle: editGallerySubtitle }) : i));
+        setEditingGalleryItem(null);
+        showNotification('Happy Client photo updated successfully!');
+      } else {
+        alert(data.message || 'Failed to update photo.');
+      }
+    } catch (err) {
+      alert('Error updating gallery item.');
+    }
+  };
+
+  const handleDirectEditGalleryImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingEditGalleryImage(true);
     try {
       const sigRes = await fetch(`${apiUrl}/api/admin/cloudinary-signature`, {
         method: 'POST',
@@ -149,34 +260,173 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
       });
       const sigData = await sigRes.json();
 
-      if (!sigData.success) {
-        throw new Error(sigData.message || 'Signature failed');
+      if (!sigData.success || !sigData.signature) {
+        alert('Cloudinary signature failed.');
+        setUploadingEditGalleryImage(false);
+        return;
       }
 
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('api_key', sigData.apiKey);
+      formData.append('timestamp', sigData.timestamp);
+      formData.append('signature', sigData.signature);
+
+      const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const cloudData = await cloudRes.json();
+
+      if (cloudData.secure_url) {
+        setEditGalleryImageUrl(cloudData.secure_url);
+        showNotification('New image uploaded to Cloudinary successfully!');
+      } else {
+        alert('Cloudinary upload failed.');
+      }
+    } catch (err) {
+      console.error('Edit image upload error:', err);
+      alert('Failed to upload image to Cloudinary.');
+    } finally {
+      setUploadingEditGalleryImage(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleDirectGalleryImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setUploadingGalleryImage(true);
+    try {
       const uploadedUrls = [];
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('api_key', sigData.apiKey);
-        formData.append('timestamp', sigData.timestamp);
-        formData.append('signature', sigData.signature);
-        formData.append('upload_preset', sigData.uploadPreset);
 
-        const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`, {
-          method: 'POST',
-          body: formData
-        });
-        const cloudData = await cloudRes.json();
+        try {
+          const sigRes = await fetch(`${apiUrl}/api/admin/cloudinary-signature`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+          });
+          const sigData = await sigRes.json();
 
-        if (cloudData.secure_url) {
-          uploadedUrls.push(cloudData.secure_url);
+          if (!sigData.success || !sigData.signature) {
+            console.error('Signature fetch failed:', sigData.message);
+            continue;
+          }
+
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('api_key', sigData.apiKey);
+          formData.append('timestamp', sigData.timestamp);
+          formData.append('signature', sigData.signature);
+
+          const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`, {
+            method: 'POST',
+            body: formData
+          });
+          const cloudData = await cloudRes.json();
+
+          if (cloudData.secure_url) {
+            uploadedUrls.push(cloudData.secure_url);
+          }
+        } catch (singleUploadErr) {
+          console.error(`Error uploading ${file.name}:`, singleUploadErr);
         }
       }
 
       if (uploadedUrls.length === 0) {
         alert('Cloudinary upload failed for selected file(s).');
+      } else if (uploadedUrls.length === 1) {
+        setNewGalleryImageUrl(uploadedUrls[0]);
+        showNotification('1 photo uploaded to Cloudinary successfully!');
+      } else {
+        // Multiple files upload
+        const itemsToCreate = uploadedUrls.map((url, idx) => ({
+          title: newGalleryTitle ? `${newGalleryTitle} (${idx + 1})` : `Happy Client Tour ${idx + 1}`,
+          category: newGalleryCategory,
+          image: url,
+          subtitle: newGallerySubtitle || 'Memorable Journey'
+        }));
+
+        const bulkRes = await fetch(`${apiUrl}/api/admin/client-gallery/bulk`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${adminToken}`
+          },
+          body: JSON.stringify({ items: itemsToCreate })
+        });
+        const bulkData = await bulkRes.json();
+        if (bulkData.success && bulkData.items) {
+          setClientGalleryItems(prev => [...bulkData.items, ...prev]);
+          setNewGalleryImageUrl('');
+          setNewGalleryTitle('');
+          setNewGallerySubtitle('');
+          showNotification(`Successfully uploaded and added ${bulkData.items.length} photos to Happy Client Gallery!`);
+        } else {
+          setNewGalleryImageUrl(uploadedUrls[0]);
+          showNotification(`${uploadedUrls.length} photos uploaded to Cloudinary!`);
+        }
+      }
+    } catch (err) {
+      console.error('Gallery upload error:', err);
+      alert('Upload failed: ' + err.message);
+    } finally {
+      setUploadingGalleryImage(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleDirectImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setUploadingImage(true);
+    try {
+      const uploadedUrls = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        try {
+          // Fetch signature per file for exact timestamping
+          const sigRes = await fetch(`${apiUrl}/api/admin/cloudinary-signature`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+          });
+          const sigData = await sigRes.json();
+
+          if (!sigData.success || !sigData.signature) {
+            console.error('Signature fetch failed:', sigData.message);
+            continue;
+          }
+
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('api_key', sigData.apiKey);
+          formData.append('timestamp', sigData.timestamp);
+          formData.append('signature', sigData.signature);
+
+          const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`, {
+            method: 'POST',
+            body: formData
+          });
+          const cloudData = await cloudRes.json();
+
+          if (cloudData.secure_url) {
+            uploadedUrls.push(cloudData.secure_url);
+          } else {
+            console.error(`Cloudinary upload failed for file ${file.name}:`, cloudData.error?.message || cloudData);
+          }
+        } catch (singleUploadErr) {
+          console.error(`Error uploading ${file.name}:`, singleUploadErr);
+        }
+      }
+
+      if (uploadedUrls.length === 0) {
+        alert('Cloudinary upload failed for selected file(s). Please check network connection or Cloudinary credentials.');
       } else if (uploadedUrls.length === 1) {
         setNewSlideUrl(uploadedUrls[0]);
         showNotification('1 image uploaded to Cloudinary successfully!');
@@ -482,6 +732,15 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
             </button>
 
             <button
+              onClick={() => setActiveTab('gallery')}
+              className={`sidebar-link ${activeTab === 'gallery' ? 'active' : ''}`}
+            >
+              <Camera size={20} />
+              <span>Happy Client Gallery</span>
+              <span className="nav-count-badge">{clientGalleryItems.length}</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('messages')}
               className={`sidebar-link ${activeTab === 'messages' ? 'active' : ''}`}
             >
@@ -735,6 +994,121 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
                             >
                               <Trash2 size={16} />
                             </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ================= HAPPY CLIENT GALLERY TAB ================= */}
+              {activeTab === 'gallery' && (
+                <div className="tab-view animate-fade-in">
+                  <div className="view-header">
+                    <div>
+                      <h2>Happy Client Gallery Management</h2>
+                      <p className="section-desc">Manage photos, titles, categories, and direct Cloudinary uploads for the Happy Client Gallery on the website.</p>
+                    </div>
+                    <button onClick={fetchAdminData} className="refresh-icon-btn" title="Refresh data">
+                      <RefreshCw size={16} />
+                    </button>
+                  </div>
+
+                  {/* Add New Gallery Item Card */}
+                  <div className="admin-card margin-bottom">
+                    <div className="card-header-bar">
+                      <h3>Add New Photo to Happy Client Gallery</h3>
+                    </div>
+                    <form onSubmit={handleAddGalleryItem} className="admin-form-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div>
+                          <label className="form-label">Image URL</label>
+                          <input
+                            type="url"
+                            required
+                            value={newGalleryImageUrl}
+                            onChange={(e) => setNewGalleryImageUrl(e.target.value)}
+                            placeholder="https://images.unsplash.com/photo-..."
+                            className="form-input"
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label">Photo Name / Tag (Optional)</label>
+                          <input
+                            type="text"
+                            value={newGalleryTitle}
+                            onChange={(e) => setNewGalleryTitle(e.target.value)}
+                            placeholder="e.g. VIP Client Group"
+                            className="form-input"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Direct Upload via Cloudinary */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <label className="submit-primary-btn" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'auto' }}>
+                          <UploadCloud size={18} />
+                          {uploadingGalleryImage ? 'Uploading Photo(s)...' : 'Upload Photo(s) via Cloudinary'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleDirectGalleryImageUpload}
+                            style={{ display: 'none' }}
+                            disabled={uploadingGalleryImage}
+                          />
+                        </label>
+                        {newGalleryImageUrl && (
+                          <span style={{ fontSize: '0.85rem', color: '#10b981' }}>✓ Photo ready for preview & save</span>
+                        )}
+                      </div>
+
+                      {/* Image Preview */}
+                      {newGalleryImageUrl && (
+                        <div style={{ marginTop: '0.5rem', borderRadius: '1rem', overflow: 'hidden', height: '140px', width: '240px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                          <img src={newGalleryImageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                      )}
+
+                      <button type="submit" className="submit-primary-btn" style={{ width: '240px', marginTop: '0.5rem' }}>
+                        <Plus size={18} /> Add to Happy Client Gallery
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Active Gallery Items Grid */}
+                  <div className="admin-card">
+                    <div className="card-header-bar">
+                      <h3>Active Gallery Photos ({clientGalleryItems.length})</h3>
+                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Displayed in Happy Client Gallery on website</span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.25rem', marginTop: '1.25rem' }}>
+                      {clientGalleryItems.map((item, idx) => (
+                        <div key={item.id} style={{ position: 'relative', borderRadius: '1.25rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)', background: '#081620' }}>
+                          <img src={item.image} alt={item.title || 'Client Photo'} style={{ width: '100%', height: '160px', objectFit: 'cover' }} />
+                          <div style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                              <span style={{ fontSize: '0.7rem', color: '#60a5fa', fontWeight: '800' }}>PHOTO #{idx + 1}</span>
+                              <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#ffffff' }}>{item.title || 'Happy Client Photo'}</h4>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                              <button
+                                onClick={() => handleOpenEditGalleryModal(item)}
+                                style={{ background: 'rgba(59,130,246,0.2)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.4)', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                title="Edit photo details"
+                              >
+                                <Edit3 size={15} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteGalleryItem(item.id)}
+                                style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                title="Delete photo"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1269,6 +1643,101 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
             <button onClick={() => setViewingBooking(null)} className="submit-primary-btn full-width-btn">
               Close Details Window
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= EDIT GALLERY ITEM MODAL ================= */}
+      {editingGalleryItem && (
+        <div className="modal-backdrop">
+          <div className="modal-card glass-modal">
+            <button onClick={() => setEditingGalleryItem(null)} className="modal-close-btn">
+              <X size={20} />
+            </button>
+
+            <div className="modal-header">
+              <div className="admin-badge-icon">
+                <Camera size={26} />
+              </div>
+              <h2 className="modal-title">Edit Happy Client Photo</h2>
+              <span className="ref-tag-badge">{editingGalleryItem.id}</span>
+            </div>
+
+            <form onSubmit={handleUpdateGalleryItem} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              <div className="form-group">
+                <label className="form-label">Photo Title</label>
+                <input
+                  type="text"
+                  required
+                  value={editGalleryTitle}
+                  onChange={(e) => setEditGalleryTitle(e.target.value)}
+                  placeholder="e.g. VIP Umrah Family Group"
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Category</label>
+                <select
+                  value={editGalleryCategory}
+                  onChange={(e) => setEditGalleryCategory(e.target.value)}
+                  className="form-input"
+                >
+                  <option value="HAPPY CLIENTS">HAPPY CLIENTS</option>
+                  <option value="DESTINATIONS">DESTINATIONS</option>
+                  <option value="AIRLINES & JETS">AIRLINES & JETS</option>
+                  <option value="RESORTS">RESORTS</option>
+                  <option value="PILGRIMAGE & UMRAH">PILGRIMAGE & UMRAH</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Subtitle / Description (Optional)</label>
+                <input
+                  type="text"
+                  value={editGallerySubtitle}
+                  onChange={(e) => setEditGallerySubtitle(e.target.value)}
+                  placeholder="e.g. 5 Star Hotel & Direct Flight"
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Image URL</label>
+                <input
+                  type="url"
+                  required
+                  value={editGalleryImageUrl}
+                  onChange={(e) => setEditGalleryImageUrl(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+
+              {/* Replace Image via Cloudinary */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <label className="submit-primary-btn" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'auto', background: 'rgba(255,255,255,0.1)' }}>
+                  <UploadCloud size={18} />
+                  {uploadingEditGalleryImage ? 'Uploading New Photo...' : 'Replace Photo via Cloudinary'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleDirectEditGalleryImageUpload}
+                    style={{ display: 'none' }}
+                    disabled={uploadingEditGalleryImage}
+                  />
+                </label>
+              </div>
+
+              {editGalleryImageUrl && (
+                <div style={{ borderRadius: '0.75rem', overflow: 'hidden', height: '140px', width: '100%', border: '1px solid rgba(255,255,255,0.2)', marginTop: '0.5rem' }}>
+                  <img src={editGalleryImageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              )}
+
+              <button type="submit" className="submit-primary-btn full-width-btn" style={{ marginTop: '0.5rem' }}>
+                Save Photo Changes
+              </button>
+            </form>
           </div>
         </div>
       )}

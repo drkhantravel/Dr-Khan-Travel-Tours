@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error']
+  log: [] // Suppress verbose engine logs during network dropouts
 });
 
 let isConnected = false;
@@ -17,7 +17,7 @@ export async function initDatabase() {
     isConnected = true;
     return { success: true, isConnected: true };
   } catch (err) {
-    console.warn(`⚠️ Prisma AWS RDS MySQL connection attempt skipped or offline (${err.message}). Using hybrid data fallback layer.`);
+    console.warn(`⚠️ Prisma AWS RDS MySQL connection attempt offline (${err.message}). Using hybrid data fallback layer.`);
     isConnected = false;
     return { success: false, isConnected: false, error: err.message };
   }
@@ -27,8 +27,13 @@ export function isDbConnected() {
   return isConnected;
 }
 
+export function setDbConnectedStatus(status) {
+  isConnected = Boolean(status);
+}
+
 export default {
   prisma,
   initDatabase,
-  isDbConnected
+  isDbConnected,
+  setDbConnectedStatus
 };

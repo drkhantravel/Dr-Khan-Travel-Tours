@@ -1,60 +1,72 @@
-import React, { useState } from 'react';
-import { X, ZoomIn, Sparkles, Camera } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ZoomIn, Camera, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const galleryItems = [
-  {
-    id: 1,
-    title: "Maldives Overwater Sanctuary",
-    category: "RESORTS",
-    image: "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1000&q=80",
-    subtitle: "Tropical Villa & Turquoise Lagoon"
-  },
-  {
-    id: 2,
-    title: "Executive Private Jet Interior",
-    category: "AIRLINES & JETS",
-    image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1000&q=80",
-    subtitle: "Diplomatic VIP Luxury Travel"
-  },
-  {
-    id: 3,
-    title: "Experience the Magic of Santorini",
-    category: "DESTINATIONS",
-    image: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1000&q=80",
-    subtitle: "Caldera Sunset & Infinity Pool"
-  },
-  {
-    id: 4,
-    title: "Historic Istanbul Mosque Illuminations",
-    category: "DESTINATIONS",
-    image: "https://images.unsplash.com/photo-1527838832700-548952f12098?auto=format&fit=crop&w=1000&q=80",
-    subtitle: "Bosphorus Night Vista"
-  },
-  {
-    id: 5,
-    title: "Kruger Wilderness Safari Lodge",
-    category: "RESORTS",
-    image: "https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1000&q=80",
-    subtitle: "African Sunset & Wildlife Retreat"
-  },
-  {
-    id: 6,
-    title: "High Altitude Alpine Wing View",
-    category: "AIRLINES & JETS",
-    image: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1000&q=80",
-    subtitle: "Scenic Swiss Alps Flight Route"
-  }
-];
+const ITEMS_PER_SLIDE = 6;
 
-const categories = ["ALL", "DESTINATIONS", "AIRLINES & JETS", "RESORTS"];
+export default function GallerySection({ apiUrl = 'http://localhost:5000' }) {
+  const [items, setItems] = useState([]);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [isAutoSliding, setIsAutoSliding] = useState(true);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(null);
 
-export default function GallerySection() {
-  const [activeCategory, setActiveCategory] = useState("ALL");
-  const [selectedImage, setSelectedImage] = useState(null);
+  // Fetch admin-uploaded Happy Client Gallery items from API
+  useEffect(() => {
+    fetch(`${apiUrl}/api/client-gallery`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.items)) {
+          setItems(data.items);
+        }
+      })
+      .catch(() => {});
+  }, [apiUrl]);
 
-  const filteredItems = activeCategory === "ALL" 
-    ? galleryItems 
-    : galleryItems.filter(item => item.category === activeCategory);
+  const totalSlides = Math.ceil(items.length / ITEMS_PER_SLIDE) || 1;
+
+  // Auto-slide every 4.5 seconds if totalSlides > 1 and auto-playing
+  useEffect(() => {
+    if (items.length <= ITEMS_PER_SLIDE || !isAutoSliding || selectedImageIndex !== null) return;
+
+    const timer = setInterval(() => {
+      setCurrentSlideIndex(prev => (prev + 1) % totalSlides);
+    }, 4500);
+
+    return () => clearInterval(timer);
+  }, [items.length, totalSlides, isAutoSliding, selectedImageIndex]);
+
+  const handlePrevSlide = () => {
+    setCurrentSlideIndex(prev => (prev - 1 + totalSlides) % totalSlides);
+  };
+
+  const handleNextSlide = () => {
+    setCurrentSlideIndex(prev => (prev + 1) % totalSlides);
+  };
+
+  // Get current 6 items for the active slide group
+  const visibleItems = items.slice(
+    currentSlideIndex * ITEMS_PER_SLIDE,
+    (currentSlideIndex + 1) * ITEMS_PER_SLIDE
+  );
+
+  // Lightbox handlers
+  const handleOpenLightbox = (indexInVisible) => {
+    const globalIdx = currentSlideIndex * ITEMS_PER_SLIDE + indexInVisible;
+    setSelectedImageIndex(globalIdx);
+  };
+
+  const handlePrevLightbox = (e) => {
+    e?.stopPropagation();
+    if (selectedImageIndex === null) return;
+    setSelectedImageIndex(prev => (prev - 1 + items.length) % items.length);
+  };
+
+  const handleNextLightbox = (e) => {
+    e?.stopPropagation();
+    if (selectedImageIndex === null) return;
+    setSelectedImageIndex(prev => (prev + 1) % items.length);
+  };
+
+  const currentLightboxItem = selectedImageIndex !== null ? items[selectedImageIndex] : null;
 
   return (
     <section id="gallery" className="gallery-section">
@@ -64,77 +76,120 @@ export default function GallerySection() {
           <div className="gallery-title-group">
             <span className="gallery-badge-pill">
               <Camera size={14} style={{ marginRight: '6px' }} />
-              MOMENTS CAPTURED
+              HAPPY CLIENT MOMENTS
             </span>
-            <h2 className="gallery-main-heading">Travel Gallery</h2>
+            <h2 className="gallery-main-heading">Happy Client Gallery</h2>
           </div>
 
-          {/* Filter Tabs */}
-          <div className="gallery-filter-tabs">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`gallery-filter-btn ${activeCategory === cat ? 'active' : ''}`}
+          {/* Slider Controls (Manual Next / Prev & Page Counter) */}
+          {totalSlides > 1 && (
+            <div className="gallery-slider-controls">
+              <span className="gallery-slide-counter">
+                {String(currentSlideIndex + 1).padStart(2, '0')} / {String(totalSlides).padStart(2, '0')}
+              </span>
+              <button 
+                onClick={handlePrevSlide} 
+                className="gallery-nav-arrow-btn"
+                aria-label="Previous 6 Photos"
+                title="Previous 6 Photos"
               >
-                {cat}
+                <ChevronLeft size={18} />
               </button>
-            ))}
-          </div>
+              <button 
+                onClick={handleNextSlide} 
+                className="gallery-nav-arrow-btn"
+                aria-label="Next 6 Photos"
+                title="Next 6 Photos"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* 3x2 Photo Grid */}
-        <div className="gallery-grid">
-          {filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className="gallery-card-item"
-              onClick={() => setSelectedImage(item)}
-            >
-              <img
-                src={item.image}
-                alt={item.title}
-                className="gallery-img"
-                loading="lazy"
-              />
-              
-              {/* Subtle Ambient Vignette & Overlay info */}
-              <div className="gallery-card-overlay">
-                <div className="gallery-zoom-badge">
-                  <ZoomIn size={18} />
+        {/* Photo Grid or Empty State */}
+        {items.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: '#ffffff', borderRadius: '1.25rem', border: '1px dashed #cbd5e1', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+            <Camera size={44} style={{ color: '#94a3b8', marginBottom: '0.75rem' }} />
+            <h3 style={{ color: '#1e293b', fontSize: '1.15rem', fontWeight: '700', marginBottom: '0.35rem' }}>No Client Photos Uploaded Yet</h3>
+            <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>Photos uploaded from the Admin Dashboard will appear here automatically.</p>
+          </div>
+        ) : (
+          <div 
+            className="gallery-slider-frame"
+            onMouseEnter={() => setIsAutoSliding(false)}
+            onMouseLeave={() => setIsAutoSliding(true)}
+          >
+            {/* 6-Photo Grid per Slide Page */}
+            <div className="gallery-grid slide-fade-in" key={currentSlideIndex}>
+              {visibleItems.map((item, idx) => (
+                <div
+                  key={item.id || item.image || idx}
+                  className="gallery-card-item pure-image-card"
+                  onClick={() => handleOpenLightbox(idx)}
+                >
+                  <img
+                    src={item.image}
+                    alt="Happy Client Photo"
+                    className="gallery-img"
+                    loading="lazy"
+                  />
+                  
+                  {/* Clean Zoom Badge Overlay (Pure Image Focus) */}
+                  <div className="gallery-card-overlay clean-overlay">
+                    <div className="gallery-zoom-badge center-zoom">
+                      <ZoomIn size={22} />
+                    </div>
+                  </div>
                 </div>
-                <div className="gallery-card-info">
-                  <span className="gallery-card-cat">{item.category}</span>
-                  <h4 className="gallery-card-title">{item.title}</h4>
-                  <p className="gallery-card-sub">{item.subtitle}</p>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+
+            {/* Dots Indicator */}
+            {totalSlides > 1 && (
+              <div className="gallery-pagination-dots">
+                {Array.from({ length: totalSlides }).map((_, pageIdx) => (
+                  <button
+                    key={pageIdx}
+                    onClick={() => setCurrentSlideIndex(pageIdx)}
+                    className={`gallery-dot-btn ${pageIdx === currentSlideIndex ? 'active' : ''}`}
+                    aria-label={`Go to photo group ${pageIdx + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Lightbox Modal */}
-      {selectedImage && (
-        <div className="lightbox-modal-backdrop" onClick={() => setSelectedImage(null)}>
-          <div className="lightbox-content-card" onClick={(e) => e.stopPropagation()}>
+      {/* Lightbox Modal (Clean View - Photos Only) */}
+      {currentLightboxItem && (
+        <div className="lightbox-modal-backdrop" onClick={() => setSelectedImageIndex(null)}>
+          <div className="lightbox-content-card clean-lightbox" onClick={(e) => e.stopPropagation()}>
             <button
               className="lightbox-close-btn"
-              onClick={() => setSelectedImage(null)}
+              onClick={() => setSelectedImageIndex(null)}
               aria-label="Close image preview"
             >
-              <X size={22} />
+              <X size={24} />
             </button>
+
             <img
-              src={selectedImage.image}
-              alt={selectedImage.title}
+              src={currentLightboxItem.image}
+              alt="Happy Client Full View"
               className="lightbox-full-img"
             />
-            <div className="lightbox-caption">
-              <div className="lightbox-cat-badge">{selectedImage.category}</div>
-              <h3>{selectedImage.title}</h3>
-              <p>{selectedImage.subtitle}</p>
-            </div>
+
+            {items.length > 1 && (
+              <>
+                <button className="lightbox-arrow-btn prev" onClick={handlePrevLightbox} aria-label="Previous photo">
+                  <ChevronLeft size={28} />
+                </button>
+                <button className="lightbox-arrow-btn next" onClick={handleNextLightbox} aria-label="Next photo">
+                  <ChevronRight size={28} />
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

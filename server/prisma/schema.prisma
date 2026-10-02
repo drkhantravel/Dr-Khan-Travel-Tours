@@ -88,3 +88,14 @@ model AboutSlide {
 
   @@map("about_slides")
 }
+
+model ClientGalleryItem {
+  id        String   @id
+  title     String
+  category  String
+  image     String   @db.Text
+  subtitle  String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("client_gallery_items")
+}

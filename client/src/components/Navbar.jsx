@@ -8,22 +8,15 @@ export default function Navbar({ onOpenMobileMenu, onOpenLoginModal, isAdmin, on
   return (
     <header className="navbar-container">
       <nav className="glass-pill-nav">
-        {/* Brand Logo (Server Controlled) */}
+        {/* Brand Logo */}
         <div className="brand-logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          {logoUrl ? (
-            <img src={logoUrl} alt={logoText} className="server-logo-img" />
-          ) : (
-            <div className="logo-badge">
-              <Plane className="plane-icon" />
-            </div>
-          )}
-          <span className="brand-name">{logoText}</span>
+          <img src="/logo.png" alt="Dr. Khan's Travel & Tours" className="brand-logo-img" style={{ height: '48px', objectFit: 'contain' }} />
         </div>
 
         {/* Nav Links (Desktop) */}
         <div className="nav-items-desktop">
           <a href="#about" className="nav-item">About Us</a>
-          <a href="#gallery" className="nav-item">Gallery</a>
+          <a href="#gallery" className="nav-item">Client Gallery</a>
         </div>
 
         {/* Actions (Login Button placed where Book Now was) */}

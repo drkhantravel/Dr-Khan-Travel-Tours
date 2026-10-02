@@ -7,29 +7,29 @@ export default function StatsBar() {
       <div className="stats-grid">
         {/* Card 1 */}
         <div className="stat-card">
-          <div className="stat-icon-badge">
+          <div className="stat-icon-badge icon-badge-gold">
             <Award className="stat-icon" />
           </div>
           <div className="stat-text-wrap">
-            <span className="stat-number">10+</span>
+            <span className="stat-number">7+</span>
             <span className="stat-label">YEARS OF PRESTIGE</span>
           </div>
         </div>
 
         {/* Card 2 */}
         <div className="stat-card">
-          <div className="stat-icon-badge">
+          <div className="stat-icon-badge icon-badge-blue">
             <Smile className="stat-icon" />
           </div>
           <div className="stat-text-wrap">
-            <span className="stat-number">5,000+</span>
+            <span className="stat-number">1,000+</span>
             <span className="stat-label">HAPPY TRAVELERS</span>
           </div>
         </div>
 
         {/* Card 3 */}
         <div className="stat-card">
-          <div className="stat-icon-badge">
+          <div className="stat-icon-badge icon-badge-emerald">
             <Globe className="stat-icon" />
           </div>
           <div className="stat-text-wrap">
@@ -40,7 +40,7 @@ export default function StatsBar() {
 
         {/* Card 4 */}
         <div className="stat-card">
-          <div className="stat-icon-badge">
+          <div className="stat-icon-badge icon-badge-violet">
             <Headphones className="stat-icon" />
           </div>
           <div className="stat-text-wrap">

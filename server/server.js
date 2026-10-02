@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { toursData, destinationsData, testimonialsData } from './data/toursData.js';
-import { prisma, initDatabase, isDbConnected } from './db.js';
+import { prisma, initDatabase, isDbConnected, setDbConnectedStatus } from './db.js';
 
 // Load environment variables from .env
 dotenv.config();
@@ -87,7 +87,7 @@ let aboutSlidesStore = [
 ];
 
 async function getAboutSlidesList() {
-  if (isDbConnected()) {
+  if (isDbConnected() && prisma.aboutSlide) {
     try {
       const dbSlides = await prisma.aboutSlide.findMany({
         orderBy: { createdAt: 'desc' }
@@ -104,6 +104,29 @@ async function getAboutSlidesList() {
     }
   }
   return aboutSlidesStore;
+}
+
+// Happy Client Gallery Store (Controlled exclusively via Admin Dashboard)
+let clientGalleryStore = [];
+
+async function getClientGalleryList() {
+  if (isDbConnected() && prisma.clientGalleryItem) {
+    try {
+      const dbItems = await prisma.clientGalleryItem.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
+      return dbItems.map(item => ({
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        image: item.image,
+        subtitle: item.subtitle || ''
+      }));
+    } catch (e) {
+      setDbConnectedStatus(false);
+    }
+  }
+  return clientGalleryStore;
 }
 
 // Mutable tours store initialized with toursData
@@ -280,6 +303,16 @@ app.get('/api/about-slides', async (req, res) => {
     success: true,
     count: slides.length,
     slides
+  });
+});
+
+// Get Happy Client Gallery Items
+app.get('/api/client-gallery', async (req, res) => {
+  const items = await getClientGalleryList();
+  res.json({
+    success: true,
+    count: items.length,
+    items
   });
 });
 
@@ -485,17 +518,15 @@ app.put('/api/admin/settings', authenticateAdmin, (req, res) => {
 app.post('/api/admin/cloudinary-signature', authenticateAdmin, (req, res) => {
   const timestamp = Math.round(new Date().getTime() / 1000);
   const apiSecret = process.env.CLOUDINARY_API_SECRET || 'DYay_BuY2ief_6Mc6mw8iGN3B7c';
-  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET || 'dr_khan_travel_preset';
 
-  // Create signature SHA-1 string
-  const strToSign = `timestamp=${timestamp}&upload_preset=${uploadPreset}${apiSecret}`;
+  // Create signature SHA-1 string (standard Cloudinary signed upload: timestamp + apiSecret)
+  const strToSign = `timestamp=${timestamp}${apiSecret}`;
   const signature = crypto.createHash('sha1').update(strToSign).digest('hex');
 
   res.json({
     success: true,
     cloudName: process.env.CLOUDINARY_CLOUD_NAME || 'dta2eolgn',
     apiKey: process.env.CLOUDINARY_API_KEY || '166225669915732',
-    uploadPreset,
     timestamp,
     signature
   });
@@ -514,7 +545,7 @@ app.post('/api/admin/about-slides', authenticateAdmin, async (req, res) => {
     caption: caption || ''
   };
 
-  if (isDbConnected()) {
+  if (isDbConnected() && prisma.aboutSlide) {
     try {
       await prisma.aboutSlide.create({
         data: {
@@ -552,7 +583,7 @@ app.post('/api/admin/about-slides/bulk', authenticateAdmin, async (req, res) => 
       caption: item.caption || ''
     };
 
-    if (isDbConnected()) {
+    if (isDbConnected() && prisma.aboutSlide) {
       try {
         await prisma.aboutSlide.create({
           data: {
@@ -581,11 +612,11 @@ app.post('/api/admin/about-slides/bulk', authenticateAdmin, async (req, res) => 
 app.delete('/api/admin/about-slides/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;
 
-  if (isDbConnected()) {
+  if (isDbConnected() && prisma.aboutSlide) {
     try {
-      await prisma.aboutSlide.delete({
+      await prisma.aboutSlide.deleteMany({
         where: { id }
-      }).catch(() => {});
+      });
     } catch (e) {
       console.error('Prisma delete error for about slide:', e.message);
     }
@@ -595,6 +626,152 @@ app.delete('/api/admin/about-slides/:id', authenticateAdmin, async (req, res) =>
   res.json({
     success: true,
     message: `Slide ${id} deleted successfully.`
+  });
+});
+
+// Admin: Add Happy Client Gallery Item
+app.post('/api/admin/client-gallery', authenticateAdmin, async (req, res) => {
+  const { title, category, image, subtitle } = req.body;
+  if (!image || !title) {
+    return res.status(400).json({ success: false, message: 'Title and image URL are required' });
+  }
+
+  const newItem = {
+    id: `cg-${Date.now()}`,
+    title,
+    category: category || 'HAPPY CLIENTS',
+    image,
+    subtitle: subtitle || ''
+  };
+
+  if (isDbConnected() && prisma.clientGalleryItem) {
+    try {
+      await prisma.clientGalleryItem.create({
+        data: {
+          id: newItem.id,
+          title: newItem.title,
+          category: newItem.category,
+          image: newItem.image,
+          subtitle: newItem.subtitle
+        }
+      });
+    } catch (e) {
+      console.error('Prisma save error for client gallery item:', e.message);
+    }
+  }
+
+  clientGalleryStore.unshift(newItem);
+  res.json({
+    success: true,
+    message: 'Client gallery item added successfully!',
+    item: newItem
+  });
+});
+
+// Admin: Add multiple Happy Client Gallery Items in bulk
+app.post('/api/admin/client-gallery/bulk', authenticateAdmin, async (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ success: false, message: 'Items array is required' });
+  }
+
+  const createdItems = [];
+  for (const entry of items) {
+    if (!entry.image) continue;
+    const newItem = {
+      id: `cg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      title: entry.title || 'Happy Client Experience',
+      category: entry.category || 'HAPPY CLIENTS',
+      image: entry.image,
+      subtitle: entry.subtitle || ''
+    };
+
+    if (isDbConnected() && prisma.clientGalleryItem) {
+      try {
+        await prisma.clientGalleryItem.create({
+          data: {
+            id: newItem.id,
+            title: newItem.title,
+            category: newItem.category,
+            image: newItem.image,
+            subtitle: newItem.subtitle
+          }
+        });
+      } catch (e) {
+        console.error('Prisma bulk client gallery save error:', e.message);
+      }
+    }
+
+    clientGalleryStore.unshift(newItem);
+    createdItems.push(newItem);
+  }
+
+  res.json({
+    success: true,
+    message: `${createdItems.length} gallery item(s) added successfully!`,
+    items: createdItems
+  });
+});
+
+// Admin: Update Happy Client Gallery Item
+app.put('/api/admin/client-gallery/:id', authenticateAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { title, category, image, subtitle } = req.body;
+
+  let updatedItem = null;
+
+  if (isDbConnected() && prisma.clientGalleryItem) {
+    try {
+      await prisma.clientGalleryItem.updateMany({
+        where: { id },
+        data: {
+          ...(title && { title }),
+          ...(category && { category }),
+          ...(image && { image }),
+          ...(subtitle !== undefined && { subtitle })
+        }
+      });
+    } catch (e) {
+      console.error('Prisma update error for client gallery item:', e.message);
+    }
+  }
+
+  const idx = clientGalleryStore.findIndex(i => i.id === id);
+  if (idx !== -1) {
+    if (title) clientGalleryStore[idx].title = title;
+    if (category) clientGalleryStore[idx].category = category;
+    if (image) clientGalleryStore[idx].image = image;
+    if (subtitle !== undefined) clientGalleryStore[idx].subtitle = subtitle;
+    updatedItem = clientGalleryStore[idx];
+  } else {
+    updatedItem = { id, title, category: category || 'HAPPY CLIENTS', image, subtitle: subtitle || '' };
+  }
+
+  res.json({
+    success: true,
+    message: `Gallery item ${id} updated successfully!`,
+    item: updatedItem
+  });
+});
+
+// Admin: Delete Happy Client Gallery Item
+app.delete('/api/admin/client-gallery/:id', authenticateAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  if (isDbConnected() && prisma.clientGalleryItem) {
+    try {
+      await prisma.clientGalleryItem.deleteMany({
+        where: { id }
+      });
+    } catch (e) {
+      console.error('Prisma delete error for client gallery item:', e.message);
+    }
+  }
+
+  clientGalleryStore = clientGalleryStore.filter(i => i.id !== id);
+  res.json({
+    success: true,
+    message: `Gallery item ${id} deleted successfully.`
   });
 });
 
@@ -698,7 +875,7 @@ app.delete('/api/admin/bookings/:bookingId', authenticateAdmin, async (req, res)
 
   if (isDbConnected()) {
     try {
-      await prisma.booking.delete({
+      await prisma.booking.deleteMany({
         where: { bookingId }
       });
     } catch (e) {
