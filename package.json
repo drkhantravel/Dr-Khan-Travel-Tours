@@ -11,7 +11,6 @@
     "dev": "npm run dev --prefix client",
     "dev:all": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "build": "npm run prisma:generate && npm run build --prefix client",
-    "postinstall": "npm run prisma:generate",
     "start": "npm run start --prefix server",
     "client:dev": "npm run dev --prefix client",
     "client:build": "npm run build --prefix client",
@@ -29,11 +28,11 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "mysql2": "^3.24.4"
+    "mysql2": "^3.24.4",
+    "prisma": "^5.22.0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "nodemon": "^3.1.0",
-    "prisma": "^5.22.0"
+    "nodemon": "^3.1.0"
   }
 }
