@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import Hero from './components/Hero';
 import AboutSection from './components/AboutSection';
 import GallerySection from './components/GallerySection';
+import ContactSection from './components/ContactSection';
 import Footer from './components/Footer';
 
 import AdminLoginPage from './components/AdminLoginPage';
 import AdminDashboard from './components/AdminDashboard';
 
-const API_URL = 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '');
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -133,6 +134,9 @@ export default function App() {
 
       {/* Travel Gallery Section */}
       <GallerySection />
+
+      {/* Contact & Reservations Section */}
+      <ContactSection apiUrl={API_URL} />
 
       {/* Footer */}
       <Footer

@@ -3,7 +3,7 @@ import {
   LayoutDashboard, CalendarCheck, Package, MessageSquare, Settings, 
   LogOut, Plus, Trash2, Edit3, CheckCircle, AlertCircle, X,
   Search, ExternalLink, RefreshCw, DollarSign, Shield, Server,
-  ChevronRight, Eye, MapPin, Image, UploadCloud, Sliders, Camera
+  ChevronRight, Eye, MapPin, Image, UploadCloud, Sliders, Camera, Video
 } from 'lucide-react';
 
 export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'http://localhost:5000' }) {
@@ -48,10 +48,14 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
   const [tourCategoryFilter, setTourCategoryFilter] = useState('All');
   const [tourSearch, setTourSearch] = useState('');
 
+  const [messageFilterStatus, setMessageFilterStatus] = useState('All');
+  const [messageSearch, setMessageSearch] = useState('');
+
   // Modals inside Admin
   const [showAddTourModal, setShowAddTourModal] = useState(false);
   const [editingTour, setEditingTour] = useState(null);
   const [viewingBooking, setViewingBooking] = useState(null);
+  const [viewingMessage, setViewingMessage] = useState(null);
 
   // New Tour Form State
   const [tourForm, setTourForm] = useState({
@@ -605,8 +609,14 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
   };
 
   // ================= MESSAGE ACTIONS =================
+  const handleOpenMessageModal = (msg) => {
+    if (!msg) return;
+    setViewingMessage(msg);
+  };
+
   const handleToggleMessageStatus = async (msgId, currentStatus) => {
-    const nextStatus = currentStatus === 'Replied' ? 'Unread' : 'Replied';
+    const statusVal = currentStatus || 'Unread';
+    const nextStatus = statusVal === 'Replied' ? 'Unread' : 'Replied';
     try {
       const res = await fetch(`${apiUrl}/api/admin/messages/${msgId}`, {
         method: 'PUT',
@@ -619,10 +629,11 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
       const data = await res.json();
       if (data.success) {
         setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: nextStatus } : m));
+        setViewingMessage(prev => (prev && prev.id === msgId ? { ...prev, status: nextStatus } : prev));
         showNotification(`Message status updated to ${nextStatus}.`);
       }
     } catch (err) {
-      alert('Error updating message status.');
+      console.error('Error updating message status:', err);
     }
   };
 
@@ -656,7 +667,21 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
     return matchesStatus && matchesSearch;
   });
 
-  // Filtered Tours
+  // Filtered Messages
+  const filteredMessages = messages.filter(m => {
+    const statusVal = m.status || 'Unread';
+    const matchesStatus = messageFilterStatus === 'All' || statusVal === messageFilterStatus;
+    const q = messageSearch.toLowerCase();
+    const matchesSearch = !q || (
+      (m.name || '').toLowerCase().includes(q) ||
+      (m.fatherName || '').toLowerCase().includes(q) ||
+      (m.cnic || '').toLowerCase().includes(q) ||
+      (m.passportNumber || '').toLowerCase().includes(q) ||
+      (m.workingSkills || '').toLowerCase().includes(q) ||
+      (m.phone || '').toLowerCase().includes(q)
+    );
+    return matchesStatus && matchesSearch;
+  });
   const filteredTours = tours.filter(t => {
     const matchesCategory = tourCategoryFilter === 'All' || t.category.toLowerCase().includes(tourCategoryFilter.toLowerCase());
     const q = tourSearch.toLowerCase();
@@ -686,19 +711,12 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
         <div className="admin-header-brand">
           <div className="brand-badge-square">DK</div>
           <div>
-            <h1 className="admin-title">Dr. Khan Travel — Admin Portal</h1>
+            <h1 className="admin-title">Dr. Khan Travel</h1>
             <span className="admin-subtitle">Executive Operations & Management Dashboard</span>
           </div>
         </div>
 
         <div className="admin-header-actions">
-          {/* Admin Email Pill */}
-          <div className="admin-user-pill">
-            <Shield size={16} className="pill-shield-icon" />
-            <span className="admin-email-text">{adminEmail}</span>
-            <span className="env-tag">SERVER .ENV</span>
-          </div>
-
           <button onClick={onSwitchToSite} className="admin-nav-btn secondary-btn">
             <ExternalLink size={16} /> View Website
           </button>
@@ -752,23 +770,7 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
                 </span>
               )}
             </button>
-
-            <button
-              onClick={() => setActiveTab('env')}
-              className={`sidebar-link ${activeTab === 'env' ? 'active' : ''}`}
-            >
-              <Server size={20} />
-              <span>Server & Env</span>
-            </button>
           </nav>
-
-          <div className="sidebar-footer-card">
-            <div className="server-status-dot-wrap">
-              <span className="online-dot"></span>
-              <span>Express Server Active</span>
-            </div>
-            <p className="server-info-sub">Port 5000 • CORS Authorized</p>
-          </div>
         </aside>
 
         {/* Content View Area */}
@@ -914,10 +916,23 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
                     <div className="card-header-bar">
                       <h3>Add New Slider Image</h3>
                     </div>
-                    <form onSubmit={handleAddAboutSlide} className="admin-form-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <form onSubmit={handleAddAboutSlide} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
                         <div>
-                          <label className="form-label">Image URL</label>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                            <label className="form-label" style={{ margin: 0 }}>Image URL</label>
+                            <label style={{ cursor: 'pointer', color: '#2563eb', fontSize: '0.8rem', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <UploadCloud size={15} /> {uploadingImage ? 'Uploading...' : 'Upload via Cloudinary'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleDirectImageUpload}
+                                style={{ display: 'none' }}
+                                disabled={uploadingImage}
+                              />
+                            </label>
+                          </div>
                           <input
                             type="url"
                             required
@@ -939,35 +954,20 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
                         </div>
                       </div>
 
-                      {/* Or Direct Upload via Cloudinary */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <label className="submit-primary-btn" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'auto' }}>
-                          <UploadCloud size={18} />
-                          {uploadingImage ? 'Uploading Image(s)...' : 'Upload Image(s) via Cloudinary'}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleDirectImageUpload}
-                            style={{ display: 'none' }}
-                            disabled={uploadingImage}
-                          />
-                        </label>
-                        {newSlideUrl && (
-                          <span style={{ fontSize: '0.85rem', color: '#10b981' }}>✓ Image ready for preview & save</span>
-                        )}
-                      </div>
-
-                      {/* Image Preview if URL exists */}
                       {newSlideUrl && (
-                        <div style={{ marginTop: '0.5rem', borderRadius: '1rem', overflow: 'hidden', height: '140px', width: '240px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                          <img src={newSlideUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ borderRadius: '0.75rem', overflow: 'hidden', height: '100px', width: '160px', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                            <img src={newSlideUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                          <span style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: '700' }}>✓ Photo ready for preview & save</span>
                         </div>
                       )}
 
-                      <button type="submit" className="submit-primary-btn" style={{ width: '220px', marginTop: '0.5rem' }}>
-                        <Plus size={18} /> Save to About Slider
-                      </button>
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <button type="submit" className="submit-primary-btn" style={{ width: 'auto', padding: '0.75rem 1.75rem' }}>
+                          <Plus size={18} /> Save Image to About Slider
+                        </button>
+                      </div>
                     </form>
                   </div>
 
@@ -980,12 +980,12 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.25rem', marginTop: '1.25rem' }}>
                       {aboutSlides.map((slide, idx) => (
-                        <div key={slide.id} style={{ position: 'relative', borderRadius: '1.25rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)', background: '#081620' }}>
+                        <div key={slide.id} style={{ position: 'relative', borderRadius: '1.25rem', overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc' }}>
                           <img src={slide.imageUrl} alt={slide.caption || 'Slide'} style={{ width: '100%', height: '160px', objectFit: 'cover' }} />
                           <div style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div>
-                              <span style={{ fontSize: '0.7rem', color: '#60a5fa', fontWeight: '800' }}>SLIDE #{idx + 1}</span>
-                              <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#ffffff' }}>{slide.caption || 'Untitled Slide'}</h4>
+                              <span style={{ fontSize: '0.7rem', color: '#2563eb', fontWeight: '800' }}>SLIDE #{idx + 1}</span>
+                              <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a' }}>{slide.caption || 'Untitled Slide'}</h4>
                             </div>
                             <button
                               onClick={() => handleDeleteAboutSlide(slide.id)}
@@ -1020,10 +1020,23 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
                     <div className="card-header-bar">
                       <h3>Add New Photo to Happy Client Gallery</h3>
                     </div>
-                    <form onSubmit={handleAddGalleryItem} className="admin-form-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <form onSubmit={handleAddGalleryItem} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
                         <div>
-                          <label className="form-label">Image URL</label>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                            <label className="form-label" style={{ margin: 0 }}>Image URL</label>
+                            <label style={{ cursor: 'pointer', color: '#2563eb', fontSize: '0.8rem', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <UploadCloud size={15} /> {uploadingGalleryImage ? 'Uploading...' : 'Upload via Cloudinary'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleDirectGalleryImageUpload}
+                                style={{ display: 'none' }}
+                                disabled={uploadingGalleryImage}
+                              />
+                            </label>
+                          </div>
                           <input
                             type="url"
                             required
@@ -1045,35 +1058,20 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
                         </div>
                       </div>
 
-                      {/* Direct Upload via Cloudinary */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <label className="submit-primary-btn" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: 'auto' }}>
-                          <UploadCloud size={18} />
-                          {uploadingGalleryImage ? 'Uploading Photo(s)...' : 'Upload Photo(s) via Cloudinary'}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleDirectGalleryImageUpload}
-                            style={{ display: 'none' }}
-                            disabled={uploadingGalleryImage}
-                          />
-                        </label>
-                        {newGalleryImageUrl && (
-                          <span style={{ fontSize: '0.85rem', color: '#10b981' }}>✓ Photo ready for preview & save</span>
-                        )}
-                      </div>
-
-                      {/* Image Preview */}
                       {newGalleryImageUrl && (
-                        <div style={{ marginTop: '0.5rem', borderRadius: '1rem', overflow: 'hidden', height: '140px', width: '240px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                          <img src={newGalleryImageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ borderRadius: '0.75rem', overflow: 'hidden', height: '100px', width: '160px', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                            <img src={newGalleryImageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                          <span style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: '700' }}>✓ Photo ready for preview & save</span>
                         </div>
                       )}
 
-                      <button type="submit" className="submit-primary-btn" style={{ width: '240px', marginTop: '0.5rem' }}>
-                        <Plus size={18} /> Add to Happy Client Gallery
-                      </button>
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <button type="submit" className="submit-primary-btn" style={{ width: 'auto', padding: '0.75rem 1.75rem' }}>
+                          <Plus size={18} /> Add Photo to Gallery
+                        </button>
+                      </div>
                     </form>
                   </div>
 
@@ -1086,12 +1084,12 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.25rem', marginTop: '1.25rem' }}>
                       {clientGalleryItems.map((item, idx) => (
-                        <div key={item.id} style={{ position: 'relative', borderRadius: '1.25rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)', background: '#081620' }}>
+                        <div key={item.id} style={{ position: 'relative', borderRadius: '1.25rem', overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc' }}>
                           <img src={item.image} alt={item.title || 'Client Photo'} style={{ width: '100%', height: '160px', objectFit: 'cover' }} />
                           <div style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div>
-                              <span style={{ fontSize: '0.7rem', color: '#60a5fa', fontWeight: '800' }}>PHOTO #{idx + 1}</span>
-                              <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#ffffff' }}>{item.title || 'Happy Client Photo'}</h4>
+                              <span style={{ fontSize: '0.7rem', color: '#2563eb', fontWeight: '800' }}>PHOTO #{idx + 1}</span>
+                              <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a' }}>{item.title || 'Happy Client Photo'}</h4>
                             </div>
                             <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
                               <button
@@ -1338,54 +1336,118 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
                     </div>
                   </div>
 
+                  <div className="filter-controls-bar">
+                    <div className="search-input-wrap">
+                      <Search size={18} className="search-icon" />
+                      <input
+                        type="text"
+                        placeholder="Search candidate by name, CNIC, skills, phone..."
+                        value={messageSearch}
+                        onChange={(e) => setMessageSearch(e.target.value)}
+                        className="admin-search-input"
+                      />
+                    </div>
+                    <div className="filter-pills-wrap">
+                      {['All', 'Unread', 'Replied'].map(st => (
+                        <button
+                          key={st}
+                          onClick={() => setMessageFilterStatus(st)}
+                          className={`filter-pill-btn ${messageFilterStatus === st ? 'active' : ''}`}
+                        >
+                          {st} ({st === 'All' ? messages.length : messages.filter(m => (m.status || 'Unread') === st).length})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="admin-table-wrapper">
                     <table className="admin-table">
                       <thead>
                         <tr>
-                          <th>Sender Info</th>
-                          <th>Subject</th>
-                          <th>Message Content</th>
+                          <th>Candidate Info</th>
+                          <th>CNIC / Passport</th>
+                          <th>Skills</th>
+                          <th>Video Links</th>
                           <th>Received At</th>
                           <th>Status</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {messages.length === 0 ? (
+                        {filteredMessages.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="empty-table-cell">No customer messages found.</td>
+                            <td colSpan={7} className="empty-table-cell">No candidate applications or messages found matching filter.</td>
                           </tr>
                         ) : (
-                          messages.map(m => (
-                            <tr key={m.id}>
+                          filteredMessages.map(m => (
+                            <tr 
+                              key={m.id} 
+                              onClick={() => handleOpenMessageModal(m)} 
+                              style={{ cursor: 'pointer' }}
+                              className="admin-clickable-row"
+                              title="Click row to open message details window"
+                            >
                               <td>
                                 <div className="user-detail-cell">
                                   <strong>{m.name}</strong>
-                                  <span className="cell-sub">{m.email}</span>
+                                  {m.fatherName && <span className="cell-sub">S/O {m.fatherName}</span>}
                                   <span className="cell-sub">{m.phone}</span>
                                 </div>
                               </td>
-                              <td><strong>{m.subject}</strong></td>
                               <td>
-                                <p className="msg-text-clamp">{m.message}</p>
+                                <div className="user-detail-cell">
+                                  <strong>{m.cnic || 'N/A'}</strong>
+                                  <span className="cell-sub">{m.passportNumber || 'No Passport'}</span>
+                                </div>
+                              </td>
+                              <td>
+                                <span style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.25rem 0.6rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: '700' }}>
+                                  {m.workingSkills || 'N/A'}
+                                </span>
+                              </td>
+                              <td>
+                                {m.tiktokLinks ? (
+                                  <span className="trust-pill" style={{ background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', fontWeight: '700' }}>
+                                    {m.tiktokLinks.split('\n').filter(Boolean).length} Video(s)
+                                  </span>
+                                ) : (
+                                  <span className="cell-sub">None</span>
+                                )}
                               </td>
                               <td>{new Date(m.receivedAt).toLocaleDateString()}</td>
                               <td>
-                                <span className={`status-pill ${m.status.toLowerCase()}`}>
-                                  {m.status}
+                                <span className={`status-pill ${(m.status || 'Unread').toLowerCase()}`}>
+                                  {m.status || 'Unread'}
                                 </span>
                               </td>
                               <td>
                                 <div className="action-buttons-group">
                                   <button
-                                    onClick={() => handleToggleMessageStatus(m.id, m.status)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenMessageModal(m);
+                                    }}
                                     className="icon-action-btn view-btn"
+                                    title="View Full Message Details"
+                                  >
+                                    <Eye size={16} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleMessageStatus(m.id, m.status);
+                                    }}
+                                    className="icon-action-btn view-btn"
+                                    style={{ background: '#f0fdf4', color: '#16a34a' }}
                                     title="Toggle Replied / Unread"
                                   >
                                     <CheckCircle size={16} />
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteMessage(m.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteMessage(m.id);
+                                    }}
                                     className="icon-action-btn delete-btn"
                                     title="Delete Message"
                                   >
@@ -1398,56 +1460,6 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
                         )}
                       </tbody>
                     </table>
-                  </div>
-                </div>
-              )}
-
-              {/* ================= 5. SERVER ENV TAB ================= */}
-              {activeTab === 'env' && (
-                <div className="tab-view animate-fade-in">
-                  <div className="view-header">
-                    <div>
-                      <h2>Server Environment Configuration</h2>
-                      <p className="section-desc">Verification of backend environment variables and server health.</p>
-                    </div>
-                  </div>
-
-                  <div className="env-details-card">
-                    <div className="env-status-banner">
-                      <Shield size={32} className="env-shield-icon" />
-                      <div>
-                        <h3>Server Environment Authentication System</h3>
-                        <p>
-                          Admin credentials are authenticated on server boot directly from <code className="env-code">server/.env</code> file.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="env-grid">
-                      <div className="env-field-box">
-                        <span className="env-lbl">ADMIN_EMAIL Variable</span>
-                        <code className="env-val">{adminEmail}</code>
-                        <span className="env-sub">Configured in server/.env</span>
-                      </div>
-
-                      <div className="env-field-box">
-                        <span className="env-lbl">AWS RDS MySQL Database</span>
-                        <code className="env-val">{stats?.database?.host || 'dr-khan-travel-db...rds.amazonaws.com'}</code>
-                        <span className="env-sub">Port {stats?.database?.port || 3306} • Provider: AWS RDS MySQL</span>
-                      </div>
-
-                      <div className="env-field-box">
-                        <span className="env-lbl">Cloudinary Cloud Name</span>
-                        <code className="env-val">{stats?.serverConfig?.cloudinaryCloudName || 'drkhantravel'}</code>
-                        <span className="env-sub">Media Storage & Asset CDN</span>
-                      </div>
-
-                      <div className="env-field-box">
-                        <span className="env-lbl">CLIENT_URL Variable</span>
-                        <code className="env-val">http://localhost:5173</code>
-                        <span className="env-sub">CORS Origin Allowed</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -1643,6 +1655,167 @@ export default function AdminDashboard({ onLogout, onSwitchToSite, apiUrl = 'htt
             <button onClick={() => setViewingBooking(null)} className="submit-primary-btn full-width-btn">
               Close Details Window
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= VIEW CONTACT MESSAGE DETAILS MODAL ================= */}
+      {viewingMessage && (
+        <div className="modal-backdrop" onClick={() => setViewingMessage(null)}>
+          <div 
+            className="modal-card glass-modal" 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              maxWidth: '540px', 
+              width: '95%', 
+              maxHeight: '88vh', 
+              overflowY: 'auto',
+              padding: '1.75rem 1.5rem',
+              boxSizing: 'border-box'
+            }}
+          >
+            <button onClick={() => setViewingMessage(null)} className="modal-close-btn">
+              <X size={20} />
+            </button>
+
+            <div className="modal-header" style={{ marginBottom: '0.75rem' }}>
+              <div className="admin-badge-icon" style={{ background: 'rgba(37, 99, 235, 0.2)', color: '#60a5fa' }}>
+                <MessageSquare size={24} />
+              </div>
+              <div>
+                <h2 className="modal-title" style={{ fontSize: '1.4rem' }}>Candidate Application</h2>
+                <span className="ref-tag-badge">{viewingMessage.id}</span>
+              </div>
+            </div>
+
+            <div className="booking-receipt-card margin-bottom" style={{ marginTop: '0.75rem', padding: '1rem 1.15rem' }}>
+              <div className="receipt-row">
+                <span className="receipt-label">Candidate Name:</span>
+                <span className="receipt-value" style={{ fontWeight: '700', color: '#0f172a' }}>{viewingMessage.name}</span>
+              </div>
+
+              {viewingMessage.fatherName && (
+                <div className="receipt-row">
+                  <span className="receipt-label">Father Name:</span>
+                  <span className="receipt-value">{viewingMessage.fatherName}</span>
+                </div>
+              )}
+
+              {viewingMessage.cnic && (
+                <div className="receipt-row">
+                  <span className="receipt-label">CNIC Number:</span>
+                  <span className="receipt-value" style={{ fontWeight: '600', color: '#d97706' }}>{viewingMessage.cnic}</span>
+                </div>
+              )}
+
+              {viewingMessage.passportNumber && (
+                <div className="receipt-row">
+                  <span className="receipt-label">Passport Number:</span>
+                  <span className="receipt-value">{viewingMessage.passportNumber}</span>
+                </div>
+              )}
+
+              {viewingMessage.workingSkills && (
+                <div className="receipt-row">
+                  <span className="receipt-label">Working Skills:</span>
+                  <span className="receipt-value" style={{ color: '#2563eb', fontWeight: '600' }}>{viewingMessage.workingSkills}</span>
+                </div>
+              )}
+
+              <div className="receipt-row">
+                <span className="receipt-label">Phone / WhatsApp:</span>
+                <span className="receipt-value">{viewingMessage.phone || 'Not provided'}</span>
+              </div>
+
+              <div className="receipt-row">
+                <span className="receipt-label">Received Date:</span>
+                <span className="receipt-value">{viewingMessage.receivedAt ? new Date(viewingMessage.receivedAt).toLocaleString() : 'N/A'}</span>
+              </div>
+
+              <div className="receipt-row">
+                <span className="receipt-label">Status:</span>
+                <span className={`status-pill ${(viewingMessage.status || 'Unread').toLowerCase()}`}>
+                  {viewingMessage.status || 'Unread'}
+                </span>
+              </div>
+
+              {/* TikTok Links List */}
+              {viewingMessage.tiktokLinks && typeof viewingMessage.tiktokLinks === 'string' && (
+                <div style={{ marginTop: '0.85rem', paddingTop: '0.85rem', borderTop: '1px solid #e2e8f0' }}>
+                  <span className="receipt-label" style={{ display: 'block', marginBottom: '0.65rem', fontWeight: '700', color: '#0284c7' }}>
+                    TikTok Video Links:
+                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {viewingMessage.tiktokLinks.split('\n').filter(Boolean).map((link, idx) => (
+                      <a 
+                        key={idx} 
+                        href={link.trim().startsWith('http') ? link.trim() : `https://${link.trim()}`} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          padding: '0.6rem 0.85rem',
+                          background: 'rgba(2, 132, 199, 0.08)',
+                          border: '1px solid rgba(2, 132, 199, 0.25)',
+                          borderRadius: '0.75rem',
+                          color: '#0284c7', 
+                          fontSize: '0.85rem', 
+                          fontWeight: '600',
+                          textDecoration: 'none',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Video size={15} /> Open TikTok Video #{idx + 1}
+                        </span>
+                        <ExternalLink size={14} />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.85rem' }}>
+              <button 
+                onClick={() => {
+                  handleToggleMessageStatus(viewingMessage.id, viewingMessage.status || 'Unread');
+                }} 
+                className="submit-primary-btn"
+                style={{
+                  flex: 1,
+                  background: (viewingMessage.status || 'Unread') === 'Unread' 
+                    ? 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)' 
+                    : '#e2e8f0',
+                  color: (viewingMessage.status || 'Unread') === 'Unread' ? '#ffffff' : '#334155'
+                }}
+              >
+                <CheckCircle size={16} />
+                {(viewingMessage.status || 'Unread') === 'Unread' ? 'Mark as Replied' : 'Mark as Unread'}
+              </button>
+
+              <button 
+                onClick={() => {
+                  handleDeleteMessage(viewingMessage.id);
+                  setViewingMessage(null);
+                }} 
+                className="submit-primary-btn" 
+                style={{ background: '#dc2626', color: '#ffffff', width: 'auto', padding: '0 1.25rem' }}
+                title="Delete Message"
+              >
+                <Trash2 size={16} />
+              </button>
+
+              <button 
+                onClick={() => setViewingMessage(null)} 
+                className="submit-primary-btn" 
+                style={{ background: '#e2e8f0', color: '#334155', width: 'auto', padding: '0 1.25rem' }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

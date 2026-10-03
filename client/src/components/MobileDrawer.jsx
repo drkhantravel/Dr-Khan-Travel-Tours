@@ -22,6 +22,7 @@ export default function MobileDrawer({ isOpen, onClose, onOpenBookingModal, onOp
       <div className="drawer-links">
         <a href="#about" onClick={onClose} className="drawer-item">About Us</a>
         <a href="#gallery" onClick={onClose} className="drawer-item">Happy Client Gallery</a>
+        <a href="#contact" onClick={onClose} className="drawer-item">Contact Us</a>
       </div>
 
       <div className="drawer-footer">

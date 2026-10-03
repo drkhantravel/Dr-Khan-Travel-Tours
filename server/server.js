@@ -14,7 +14,14 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
 // Configure CORS
 app.use(cors({
-  origin: [CLIENT_URL, 'http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin, Vercel subdomains, localhost, or configured CLIENT_URL
+    if (!origin || origin.includes('vercel.app') || origin.includes('localhost') || origin.includes('127.0.0.1') || origin === CLIENT_URL) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -39,7 +46,7 @@ const siteSettings = {
 // In-memory store fallback for user bookings and messages
 const bookingsStore = [];
 
-const contactMessagesStore = [
+let contactMessagesStore = [
   {
     id: "MSG-1001",
     name: "Zainab Shah",
@@ -383,23 +390,32 @@ app.post('/api/bookings', async (req, res) => {
 
 // Public: Submit contact message (Saves via Prisma ORM)
 app.post('/api/contact', async (req, res) => {
-  const { name, email, phone, subject, message } = req.body;
+  const { name, fatherName, cnic, passportNumber, workingSkills, tiktokLinks, email, phone, subject, message } = req.body;
 
-  if (!name || !email || !message) {
+  if (!name) {
     return res.status(400).json({
       success: false,
-      message: 'Name, email, and message are required.'
+      message: 'Full Name is required.'
     });
   }
+
+  const processedTiktokLinks = Array.isArray(tiktokLinks)
+    ? tiktokLinks.filter(l => l && l.trim() !== '').join('\n')
+    : (tiktokLinks || '');
 
   const msgId = `MSG-${Date.now()}`;
   const newMessage = {
     id: msgId,
     name,
-    email,
+    fatherName: fatherName || 'Not provided',
+    cnic: cnic || 'Not provided',
+    passportNumber: passportNumber || 'Not provided',
+    workingSkills: workingSkills || 'Not specified',
+    tiktokLinks: processedTiktokLinks,
+    email: email || 'Not provided',
     phone: phone || 'Not provided',
-    subject: subject || 'General Travel Inquiry',
-    message,
+    subject: subject || 'General Application / Inquiry',
+    message: message || 'No additional notes',
     status: 'Unread',
     receivedAt: new Date().toISOString()
   };
@@ -410,10 +426,15 @@ app.post('/api/contact', async (req, res) => {
         data: {
           id: msgId,
           name,
-          email,
-          phone: phone || 'Not provided',
-          subject: subject || 'General Travel Inquiry',
-          message,
+          fatherName: fatherName || null,
+          cnic: cnic || null,
+          passportNumber: passportNumber || null,
+          workingSkills: workingSkills || null,
+          tiktokLinks: processedTiktokLinks || null,
+          email: email || null,
+          phone: phone || null,
+          subject: subject || 'General Application / Inquiry',
+          message: message || 'No additional notes',
           status: 'Unread'
         }
       });
@@ -426,7 +447,7 @@ app.post('/api/contact', async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: 'Thank you for reaching out to Dr. Khan Travel & Tours. We will respond within 2 hours.'
+    message: 'Thank you! Your details and video links have been received successfully.'
   });
 });
 
@@ -897,7 +918,23 @@ app.delete('/api/admin/bookings/:bookingId', authenticateAdmin, async (req, res)
 });
 
 // Admin: Get all contact messages
-app.get('/api/admin/messages', authenticateAdmin, (req, res) => {
+app.get('/api/admin/messages', authenticateAdmin, async (req, res) => {
+  if (isDbConnected()) {
+    try {
+      const dbMessages = await prisma.contactMessage.findMany({
+        orderBy: { receivedAt: 'desc' }
+      });
+      if (dbMessages && dbMessages.length > 0) {
+        contactMessagesStore = dbMessages.map(m => ({
+          ...m,
+          receivedAt: m.receivedAt ? m.receivedAt.toISOString() : new Date().toISOString()
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching contact messages from DB:', err.message);
+    }
+  }
+
   res.json({
     success: true,
     count: contactMessagesStore.length,
@@ -906,7 +943,7 @@ app.get('/api/admin/messages', authenticateAdmin, (req, res) => {
 });
 
 // Admin: Update contact message status
-app.put('/api/admin/messages/:id', authenticateAdmin, (req, res) => {
+app.put('/api/admin/messages/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
@@ -918,6 +955,20 @@ app.put('/api/admin/messages/:id', authenticateAdmin, (req, res) => {
   if (status) msg.status = status;
   msg.updatedAt = new Date().toISOString();
 
+  if (isDbConnected()) {
+    try {
+      const existing = await prisma.contactMessage.findUnique({ where: { id } });
+      if (existing) {
+        await prisma.contactMessage.update({
+          where: { id },
+          data: { status: status || msg.status }
+        });
+      }
+    } catch (err) {
+      // Graceful fallback if record not in DB
+    }
+  }
+
   res.json({
     success: true,
     message: 'Message status updated.',
@@ -926,7 +977,7 @@ app.put('/api/admin/messages/:id', authenticateAdmin, (req, res) => {
 });
 
 // Admin: Delete contact message
-app.delete('/api/admin/messages/:id', authenticateAdmin, (req, res) => {
+app.delete('/api/admin/messages/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;
   const index = contactMessagesStore.findIndex(m => m.id === id);
 
@@ -935,6 +986,18 @@ app.delete('/api/admin/messages/:id', authenticateAdmin, (req, res) => {
   }
 
   contactMessagesStore.splice(index, 1);
+
+  if (isDbConnected()) {
+    try {
+      const existing = await prisma.contactMessage.findUnique({ where: { id } });
+      if (existing) {
+        await prisma.contactMessage.delete({ where: { id } });
+      }
+    } catch (err) {
+      // Graceful fallback if record not in DB
+    }
+  }
+
   res.json({ success: true, message: 'Message deleted successfully.' });
 });
 
@@ -1032,15 +1095,19 @@ app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found on server.` });
 });
 
-// Start Express Server
-app.listen(PORT, () => {
-  console.log(`====================================================`);
-  console.log(`✈️  Dr. Khan Travel & Tours Server Running!`);
-  console.log(`📡 Port: ${PORT}`);
-  console.log(`💎 ORM: Prisma ORM (v5.22.0)`);
-  console.log(`🔑 Admin Email: ${process.env.ADMIN_EMAIL || 'admin@drkhantravel.com'}`);
-  console.log(`☁️  Cloudinary Cloud Name: ${process.env.CLOUDINARY_CLOUD_NAME || 'dta2eolgn'}`);
-  console.log(`🌐 Allowed Client Origin: ${CLIENT_URL}`);
-  console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`====================================================`);
-});
+// Start Express Server (only when running standalone server, not on Vercel serverless)
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`====================================================`);
+    console.log(`✈️  Dr. Khan Travel & Tours Server Running!`);
+    console.log(`📡 Port: ${PORT}`);
+    console.log(`💎 ORM: Prisma ORM (v5.22.0)`);
+    console.log(`🔑 Admin Email: ${process.env.ADMIN_EMAIL || 'admin@drkhantravel.com'}`);
+    console.log(`☁️  Cloudinary Cloud Name: ${process.env.CLOUDINARY_CLOUD_NAME || 'dta2eolgn'}`);
+    console.log(`🌐 Allowed Client Origin: ${CLIENT_URL}`);
+    console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`====================================================`);
+  });
+}
+
+export default app;

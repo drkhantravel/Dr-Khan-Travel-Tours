@@ -17,6 +17,7 @@ export default function Navbar({ onOpenMobileMenu, onOpenLoginModal, isAdmin, on
         <div className="nav-items-desktop">
           <a href="#about" className="nav-item">About Us</a>
           <a href="#gallery" className="nav-item">Client Gallery</a>
+          <a href="#contact" className="nav-item">Contact Us</a>
         </div>
 
         {/* Actions (Login Button placed where Book Now was) */}

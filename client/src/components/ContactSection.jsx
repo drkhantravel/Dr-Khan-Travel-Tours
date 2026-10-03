@@ -1,16 +1,40 @@
 import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Send, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Send, CheckCircle2, AlertCircle, Plus, Trash2, Video } from 'lucide-react';
 
 export default function ContactSection({ apiUrl = 'http://localhost:5000' }) {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [fatherName, setFatherName] = useState('');
+  const [cnic, setCnic] = useState('');
+  const [passportNumber, setPassportNumber] = useState('');
+  const [workingSkills, setWorkingSkills] = useState('');
   const [phone, setPhone] = useState('');
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
+  
+  // Dynamic TikTok Video Links Array
+  const [tiktokLinks, setTiktokLinks] = useState(['']);
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+
+  const handleAddTiktokLink = () => {
+    setTiktokLinks(prev => [...prev, '']);
+  };
+
+  const handleRemoveTiktokLink = (index) => {
+    if (tiktokLinks.length === 1) {
+      setTiktokLinks(['']);
+    } else {
+      setTiktokLinks(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleTiktokLinkChange = (index, value) => {
+    setTiktokLinks(prev => {
+      const updated = [...prev];
+      updated[index] = value;
+      return updated;
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,18 +46,28 @@ export default function ContactSection({ apiUrl = 'http://localhost:5000' }) {
       const res = await fetch(`${apiUrl}/api/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, subject, message })
+        body: JSON.stringify({ 
+          name, 
+          fatherName, 
+          cnic, 
+          passportNumber, 
+          workingSkills, 
+          tiktokLinks, 
+          phone
+        })
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setSuccess(data.message);
         setName('');
-        setEmail('');
+        setFatherName('');
+        setCnic('');
+        setPassportNumber('');
+        setWorkingSkills('');
         setPhone('');
-        setSubject('');
-        setMessage('');
+        setTiktokLinks(['']);
       } else {
-        setError(data.message || 'Failed to send message.');
+        setError(data.message || 'Failed to submit form.');
       }
     } catch (err) {
       setError('Unable to reach server.');
@@ -45,45 +79,9 @@ export default function ContactSection({ apiUrl = 'http://localhost:5000' }) {
   return (
     <section id="contact" className="contact-section">
       <div className="section-container">
-        <div className="contact-grid-container">
-          {/* Left Info Column */}
-          <div className="contact-info-col">
-            <span className="about-pill-badge">Get In Touch</span>
-            <h2 className="contact-heading">Plan Your Next Voyage With Us</h2>
-            <p className="contact-subtext">
-              Have questions about Umrah packages, custom itineraries, or luxury group bookings? Our senior travel consultants are ready to assist.
-            </p>
-
-            <div className="contact-methods-list">
-              <div className="contact-method-item">
-                <div className="method-icon-wrap"><Phone size={20} /></div>
-                <div>
-                  <h4 className="method-title">Direct Helpline</h4>
-                  <p className="method-val">+92 (0) 51 111 222 333 / +92 300 9998877</p>
-                </div>
-              </div>
-
-              <div className="contact-method-item">
-                <div className="method-icon-wrap"><Mail size={20} /></div>
-                <div>
-                  <h4 className="method-title">Email Inquiries</h4>
-                  <p className="method-val">info@drkhantravel.com / support@drkhantravel.com</p>
-                </div>
-              </div>
-
-              <div className="contact-method-item">
-                <div className="method-icon-wrap"><MapPin size={20} /></div>
-                <div>
-                  <h4 className="method-title">Headquarters</h4>
-                  <p className="method-val">Dr. Khan Tower, Blue Area, F-6/1, Islamabad, Pakistan</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Form Column */}
+        <div className="contact-single-card-container">
           <div className="contact-form-col glass-card">
-            <h3 className="form-card-title">Send Us a Direct Message</h3>
+            <h3 className="form-card-title">Candidate Application Form</h3>
 
             {success && (
               <div className="alert-box success-alert">
@@ -100,35 +98,78 @@ export default function ContactSection({ apiUrl = 'http://localhost:5000' }) {
             )}
 
             <form onSubmit={handleSubmit} className="contact-form">
-              <div className="form-group">
-                <label className="form-label">Your Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Dr. Ayesha Siddiqui"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="form-input"
-                />
-              </div>
-
+              {/* Name & Father Name */}
               <div className="form-group-row">
                 <div className="form-group">
-                  <label className="form-label">Email Address</label>
+                  <label className="form-label">Full Name *</label>
                   <input
-                    type="email"
+                    type="text"
                     required
-                    placeholder="ayesha@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="e.g. M. Arif Khan"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     className="form-input"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Phone Number</label>
+                  <label className="form-label">Father Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Ghulam Muhammad Khan"
+                    value={fatherName}
+                    onChange={(e) => setFatherName(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+              </div>
+
+              {/* CNIC & Passport Number */}
+              <div className="form-group-row">
+                <div className="form-group">
+                  <label className="form-label">CNIC Number *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 35202-1234567-1"
+                    value={cnic}
+                    onChange={(e) => setCnic(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Passport Number</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. PK12345678"
+                    value={passportNumber}
+                    onChange={(e) => setPassportNumber(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+              </div>
+
+              {/* Working Skills & Phone Number */}
+              <div className="form-group-row">
+                <div className="form-group">
+                  <label className="form-label">Working Skills *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Driver, Chef, Construction, Sales, Tour Guide"
+                    value={workingSkills}
+                    onChange={(e) => setWorkingSkills(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Phone / WhatsApp Number *</label>
                   <input
                     type="tel"
+                    required
                     placeholder="+92 300 1234567"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -137,31 +178,49 @@ export default function ContactSection({ apiUrl = 'http://localhost:5000' }) {
                 </div>
               </div>
 
+              {/* Dynamic TikTok Video Links */}
               <div className="form-group">
-                <label className="form-label">Subject</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Custom Umrah & Europe Tour Package"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="form-input"
-                />
-              </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <label className="form-label" style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Video size={16} style={{ color: '#00f2fe' }} /> TikTok Video Links
+                  </label>
+                  <button 
+                    type="button" 
+                    onClick={handleAddTiktokLink}
+                    className="add-tiktok-link-btn"
+                  >
+                    <Plus size={14} /> Add Another Video Link
+                  </button>
+                </div>
 
-              <div className="form-group">
-                <label className="form-label">Your Message</label>
-                <textarea
-                  rows={4}
-                  required
-                  placeholder="Tell us about your travel dates, number of guests, budget, and specific destination preferences..."
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="form-input form-textarea"
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  {tiktokLinks.map((link, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <input
+                        type="url"
+                        placeholder={`https://www.tiktok.com/@user/video/... (Link ${idx + 1})`}
+                        value={link}
+                        onChange={(e) => handleTiktokLinkChange(idx, e.target.value)}
+                        className="form-input"
+                        style={{ flex: 1 }}
+                      />
+                      {tiktokLinks.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTiktokLink(idx)}
+                          className="remove-tiktok-link-btn"
+                          title="Remove this video link"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <button type="submit" disabled={loading} className="submit-primary-btn full-width-btn">
-                {loading ? 'Sending Message...' : <><Send size={18} /> Send Message</>}
+                {loading ? 'Submitting Application...' : <><Send size={18} /> Submit Candidate Form</>}
               </button>
             </form>
           </div>
